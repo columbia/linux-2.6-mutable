@@ -18,9 +18,12 @@ record and replay.
 For more details about the theory behind it, you can read the
 [Scribe paper](http://www.ncl.cs.columbia.edu/publications/sigmetrics2010_scribe.pdf).
 
-The [Scribe slides](http://viennot.biz/scribe-slides/) might also be interesting
-to look at. Press _z_ to show the menu, press _space_ to go forward.
-Be aware that the images are only seen with Chrome.
+Scribe is general purpose record replay framework.
+
+You can find a quick video showing the basic scribe capabilities [here](http://vimeo.com/29125502).
+
+We used it to build [Racepro](http://rcs.cs.columbia.edu/papers/racepro-sosp11.pdf),
+a process race detection mechanism.
 
 
 Project Organisation
@@ -40,8 +43,8 @@ Installing Scribe
 
 - GCC and its friends
 - CMake
-- Python
-- Cython (**At least version 0.13**)
+- Python (**version 2.6**)
+- Cython (**version 0.13 or 0.14, not 0.12 neither 0.15**)
 
 ### Instructions:
 
@@ -76,24 +79,62 @@ Using Scribe
 
 py-scribe provides three scripts: record, replay, profiler.
 
-1. Record an application
+### 1. Record an application
 
-        $ record date
-        Fri Dec 17 00:16:25 EST 2010
+The __record__ command line tool allows the user to record an execution.
 
-2. Replay an execution from a log file
+The verbosity level of the recorded log file can be provided. It allows the
+user to record only the bare minimum to guarantee a deterministic replay
+(highest performance), or to record the execution with debugging information so
+the log file can be easily interpreted by getting a execution trace similar to
+strace.
 
-        $ replay date.log
-        Fri Dec 17 00:16:25 EST 2010
+By sending a `SIGUSR1` signal to the recording tool, Scribe detaches itself
+from the application while it continues running.
+A `SIGUSR2` signal bookmarks an execution point in time. The user can then
+replay the application up to that point and the application state will be
+guaranteed to be exactly the same as during the recording.
 
-3. Look at the recorded log file in a human readable format
+Example:
 
-        $ profiler date.log
-        ---[cut]---
-        [02] clock_gettime() = 0
-        [02]     data: non-det output, ptr = 0xbfca15e0, size = 8, 4d0af253 0c1deab6
-        [02]     --fence(412)--
-        ---[cut]---
+        # record date
+        Mon Aug  8 04:18:33 EDT 2011
+        # ls -lh date.log
+        -rw-r--r-- 1 root root 4.2K Aug  8 04:18 date.log
+
+### 2. Replay an execution from a log file
+
+The __replay__ tool allows the user to replay a previously recorded execution.
+
+The user can provide the backtrace size in case the replay fails and diverge
+(for instance, the system got out of memory and the replay cannot continue).
+
+A `SIGUSR1` signal can be sent to detach Scribe at any point in time and let the
+application continue a normal execution.
+
+A bookmark id can be given as well to let the application _go live_ at a
+specific point in time.
+
+Example:
+
+        # replay date.log
+        Mon Aug  8 04:18:33 EDT 2011
+
+### 3. Look at the recorded log file in a human readable format
+
+The __profiler__ tool allows the user to display the recorded log file in a human readable format.
+
+Example:
+
+        # profiler date.log | grep Mon -B3
+        [02] write() = 29
+        [02]   resource lock, type = files_struct, serial = 31
+        [02]     resource lock, type = file, serial = 1, desc = /dev/pts/0
+        [02]       data: size = 29, "Mon Aug  8 04:18:33 EDT 2011\n"
+
+The provided command line tools use the Scribe Python library internally.
+The user can use the libraries to achieve a lot more by building its own logic
+around the Scribe API.
 
 Detailed documentation
 -----------------------
