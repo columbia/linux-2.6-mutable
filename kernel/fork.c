@@ -1016,6 +1016,7 @@ int init_scribe(struct task_struct *p, struct scribe_context *ctx)
 	scribe_get_context(ctx);
 
 	scribe->flags = 0;
+	scribe->mutable_flags = 0;
 	scribe->ctx = ctx;
 	scribe->p = p;
 	scribe->bmark_waiting = 0;

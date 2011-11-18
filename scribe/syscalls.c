@@ -23,9 +23,9 @@ union scribe_syscall_event_union {
 
 static int scribe_regs(struct scribe_ps *scribe, struct pt_regs *regs)
 {
+	struct scribe_event *event;
 	struct scribe_event_regs *event_regs;
 	struct pt_regs regs_tmp;
-	int ret;
 
 	/* We don't want to touch the given registers */
 	regs_tmp = *regs;
@@ -50,22 +50,42 @@ static int scribe_regs(struct scribe_ps *scribe, struct pt_regs *regs)
 			return -ENOMEM;
 		}
 	} else {
-		event_regs = scribe_dequeue_event_specific(scribe,
-						SCRIBE_EVENT_REGS);
-		if (IS_ERR(event_regs))
-			return PTR_ERR(event_regs);
+		event = scribe_peek_event(scribe->queue, SCRIBE_WAIT);
+		if (IS_ERR(event))
+			return PTR_ERR(event);
 
-		ret = memcmp(regs, &event_regs->regs, sizeof(*regs));
-		scribe_free_event(event_regs);
-
-		if (ret) {
-			scribe_diverge(scribe, SCRIBE_EVENT_DIVERGE_REGS,
-				       .regs = *regs);
+		if (event->type != SCRIBE_EVENT_REGS)
 			return -EDIVERGE;
-		}
+
+		event_regs = (struct scribe_event_regs *)event;
+		if (event_regs->regs.orig_ax != regs->orig_ax)
+			goto mutation;
+
+		/*
+		 * FIXME we should check the arguments for each syscall
+		 * indead. So we need a way of knowing the number of arguments
+		 * in advance, per syscalls
+		 */
+		if (scribe->nr_syscall == __NR_write &&
+		    (event_regs->regs.bx != regs->bx ||
+		     event_regs->regs.cx != regs->cx ||
+		     event_regs->regs.dx != regs->dx))
+			goto mutation;
+
+		event = scribe_dequeue_event(scribe->queue, SCRIBE_NO_WAIT);
+		scribe_free_event(event);
 	}
 
 	return 0;
+
+
+mutation:
+	scribe_mutation(scribe, SCRIBE_EVENT_DIVERGE_SYSCALL,
+			.nr = scribe->nr_syscall);
+	scribe->mutable_flags = sys_set_scribe_flags(0);
+	scribe->mutable_flags |= SCRIBE_PS_MUTABLE;
+	return 1;
+
 }
 
 static inline int is_scribe_syscall(int nr)
@@ -192,6 +212,11 @@ void scribe_enter_syscall(struct pt_regs *regs)
 	if (is_scribe_syscall(scribe->nr_syscall))
 		return;
 
+	if (should_scribe_syscalls(scribe) &&
+	    should_scribe_regs(scribe) &&
+	    scribe_regs(scribe, regs))
+		return;
+
 	/* It should already be set to false, but let's be sure */
 	scribe->need_syscall_ret = false;
 
@@ -216,11 +241,6 @@ void scribe_enter_syscall(struct pt_regs *regs)
 	if (should_scribe_syscall_ret(scribe) ||
 	    is_interruptible_syscall(scribe->nr_syscall))
 		__scribe_need_syscall_ret(scribe);
-
-	if (should_scribe_syscalls(scribe) &&
-	    should_scribe_regs(scribe) &&
-	    scribe_regs(scribe, regs))
-		return;
 
 	recalc_sigpending();
 }
@@ -303,6 +323,12 @@ void scribe_exit_syscall(struct pt_regs *regs)
 
 	if (is_scribe_syscall(scribe->nr_syscall))
 		return;
+
+	if (scribe->mutable_flags & SCRIBE_PS_MUTABLE) {
+		sys_set_scribe_flags(scribe->mutable_flags);
+		scribe->mutable_flags = 0;
+		return;
+	}
 
 	scribe_commit_syscall(scribe, regs,
 			      syscall_get_return_value(current, regs));

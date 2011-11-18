@@ -391,11 +391,35 @@ extern void scribe_wake_all_fake_sig(struct scribe_context *ctx);
 		*__event = (struct##_type) {				\
 			.h.h.type = _type,				\
 			.h.pid = sp->queue->pid,			\
+			.h.fatal = 1,					\
 			.h.last_event_offset = (sp)->queue->last_event_offset, \
 			__VA_ARGS__					\
 		};							\
 	}								\
 	__scribe_kill((sp)->ctx, (struct scribe_event *)__event);	\
+})
+
+#define scribe_mutation(sp, _type, ...)					\
+({									\
+	struct##_type *__new_event;					\
+	int __ret = 0;							\
+									\
+	__new_event = scribe_alloc_event(_type);			\
+	if (!__new_event) {						\
+		scribe_kill((sp)->ctx, -ENOMEM);			\
+		__ret = -ENOMEM;					\
+	} else {							\
+		*__new_event = (struct##_type) {			\
+			.h.h.type = _type,				\
+			.h.pid = sp->queue->pid,			\
+			.h.fatal = 0,					\
+			.h.last_event_offset = (sp)->queue->last_event_offset, \
+			__VA_ARGS__					\
+		};							\
+		scribe_queue_event_stream(&(sp)->ctx->notifications,	\
+					  __new_event);			\
+	}								\
+	__ret;								\
 })
 
 /* Bookmarks */
@@ -469,6 +493,7 @@ struct scribe_ps {
 
 	scribe_insert_point_t syscall_ip;
 	int in_syscall;
+	int mutable_flags;
 	int nr_syscall;
 	bool need_syscall_ret;
 	long orig_ret;
