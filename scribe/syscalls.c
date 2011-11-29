@@ -23,9 +23,9 @@ union scribe_syscall_event_union {
 
 static int scribe_regs(struct scribe_ps *scribe, struct pt_regs *regs)
 {
-	struct scribe_event *event;
 	struct scribe_event_regs *event_regs;
 	struct pt_regs regs_tmp;
+	int ret;
 
 	/* We don't want to touch the given registers */
 	regs_tmp = *regs;
@@ -50,6 +50,23 @@ static int scribe_regs(struct scribe_ps *scribe, struct pt_regs *regs)
 			return -ENOMEM;
 		}
 	} else {
+		event_regs = scribe_dequeue_event_specific(scribe,
+							   SCRIBE_EVENT_REGS);
+		if (IS_ERR(event_regs))
+			return PTR_ERR(event_regs);
+
+		ret = memcmp(regs, &event_regs->regs, sizeof(*regs));
+		scribe_free_event(event_regs);
+
+		if (ret) {
+			scribe_diverge(scribe, SCRIBE_EVENT_DIVERGE_REGS,
+				       .regs = *regs);
+			return -EDIVERGE;
+		}
+	}
+	return 0;
+
+#if 0
 		event = scribe_peek_event(scribe->queue, SCRIBE_WAIT);
 		if (IS_ERR(event))
 			return PTR_ERR(event);
@@ -85,6 +102,7 @@ mutation:
 	scribe->mutable_flags = sys_set_scribe_flags(0);
 	scribe->mutable_flags |= SCRIBE_PS_MUTABLE;
 	return 1;
+#endif
 
 }
 
