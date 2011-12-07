@@ -602,6 +602,10 @@ static inline int should_ret_check(struct scribe_ps *scribe)
 {
 	return scribe->flags & SCRIBE_PS_ENABLE_RET_CHECK;
 }
+static inline int should_strict_replay(struct scribe_ps *scribe)
+{
+	return scribe->flags & SCRIBE_PS_ENABLE_STRICT_RPY;
+}
 
 static inline int should_scribe_syscall_ret(struct scribe_ps *scribe)
 {

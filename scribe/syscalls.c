@@ -24,6 +24,7 @@ union scribe_syscall_event_union {
 static int scribe_regs(struct scribe_ps *scribe, struct pt_regs *regs)
 {
 	struct scribe_event_regs *event_regs;
+	struct scribe_event *event;
 	struct pt_regs regs_tmp;
 	int ret;
 
@@ -49,24 +50,8 @@ static int scribe_regs(struct scribe_ps *scribe, struct pt_regs *regs)
 			scribe_kill(scribe->ctx, -ENOMEM);
 			return -ENOMEM;
 		}
-	} else {
-		event_regs = scribe_dequeue_event_specific(scribe,
-							   SCRIBE_EVENT_REGS);
-		if (IS_ERR(event_regs))
-			return PTR_ERR(event_regs);
-
-		ret = memcmp(regs, &event_regs->regs, sizeof(*regs));
-		scribe_free_event(event_regs);
-
-		if (ret) {
-			scribe_diverge(scribe, SCRIBE_EVENT_DIVERGE_REGS,
-				       .regs = *regs);
-			return -EDIVERGE;
-		}
-	}
-	return 0;
-
-#if 0
+	} else if (should_strict_replay(scribe)) {
+		/* mutable replay */
 		event = scribe_peek_event(scribe->queue, SCRIBE_WAIT);
 		if (IS_ERR(event))
 			return PTR_ERR(event);
@@ -91,19 +76,30 @@ static int scribe_regs(struct scribe_ps *scribe, struct pt_regs *regs)
 
 		event = scribe_dequeue_event(scribe->queue, SCRIBE_NO_WAIT);
 		scribe_free_event(event);
+	} else {
+		/* regular replay */
+		event_regs = scribe_dequeue_event_specific(scribe,
+							   SCRIBE_EVENT_REGS);
+		if (IS_ERR(event_regs))
+			return PTR_ERR(event_regs);
+
+		ret = memcmp(regs, &event_regs->regs, sizeof(*regs));
+		scribe_free_event(event_regs);
+
+		if (ret) {
+			scribe_diverge(scribe, SCRIBE_EVENT_DIVERGE_REGS,
+				       .regs = *regs);
+			return -EDIVERGE;
+		}
 	}
-
 	return 0;
-
 
 mutation:
 	scribe_mutation(scribe, SCRIBE_EVENT_DIVERGE_SYSCALL,
 			.nr = scribe->nr_syscall);
-	scribe->mutable_flags = sys_set_scribe_flags(0);
-	scribe->mutable_flags |= SCRIBE_PS_MUTABLE;
-	return 1;
-#endif
-
+	scribe->mutable_flags = scribe->flags | SCRIBE_PS_MUTABLE;
+	sys_set_scribe_flags(0, 0);
+	return 0;
 }
 
 static inline int is_scribe_syscall(int nr)
