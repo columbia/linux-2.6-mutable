@@ -828,7 +828,7 @@ asmlinkage long sys_old_mmap(struct mmap_arg_struct __user *arg);
 
 #ifdef CONFIG_SCRIBE
 asmlinkage long sys_get_scribe_flags(pid_t pid, unsigned long __user *flags);
-asmlinkage long sys_set_scribe_flags(pid_t pid, unsigned long flags);
+asmlinkage long sys_set_scribe_flags(pid_t pid, unsigned long flags, int duration);
 #endif
 
 #endif

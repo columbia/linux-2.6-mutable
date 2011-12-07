@@ -21,6 +21,21 @@ union scribe_syscall_event_union {
 	struct scribe_event_syscall_extra *extra;
 };
 
+static void scribe_set_flags(struct scribe_ps *scribe,
+			     unsigned long flags,
+			     int duration)
+{
+	if (duration == SCRIBE_UNTIL_NEXT_SYSCALL)
+		scribe->commit_sys_reset_flags = scribe->flags;
+	else
+		scribe->commit_sys_reset_flags = 0;
+
+	/* We allow only enable flags to be set */
+	scribe->flags &= ~SCRIBE_PS_ENABLE_ALL;
+	scribe->flags |= flags & SCRIBE_PS_ENABLE_ALL;
+	scribe_mem_reload(scribe);
+}
+
 void scribe_handle_custom_actions(struct scribe_ps *scribe)
 {
 	struct scribe_event_set_flags *event_sf;
@@ -35,7 +50,7 @@ void scribe_handle_custom_actions(struct scribe_ps *scribe)
 
 	if (event->type == SCRIBE_EVENT_SET_FLAGS) {
 		event_sf = (struct scribe_event_set_flags *)event;
-		sys_set_scribe_flags(0, event_sf->flags);
+		scribe_set_flags(scribe, event_sf->flags, event_sf->duration);
 	} else
 		return;
 
@@ -119,8 +134,7 @@ static int scribe_regs(struct scribe_ps *scribe, struct pt_regs *regs)
 mutation:
 	scribe_mutation(scribe, SCRIBE_EVENT_DIVERGE_SYSCALL,
 			.nr = scribe->nr_syscall);
-	scribe->mutable_flags = scribe->flags | SCRIBE_PS_MUTABLE;
-	sys_set_scribe_flags(0, 0);
+	scribe_set_flags(scribe, 0, SCRIBE_UNTIL_NEXT_SYSCALL);
 	return 0;
 }
 
@@ -236,29 +250,6 @@ static int get_nr_syscall(struct pt_regs *regs)
 	return nr;
 }
 
-static int bypass_syscall(struct scribe_ps *scribe)
-{
-	struct scribe_event *event;
-
-	if (!is_replaying(scribe))
-		return 0;
-
-	event = scribe_peek_event(scribe->queue, SCRIBE_WAIT);
-	if (IS_ERR(event))
-		return PTR_ERR(event);
-
-	if (event->type != SCRIBE_EVENT_IGNORE_SYSCALL)
-		return 0;
-
-	event = scribe_dequeue_event(scribe->queue, SCRIBE_NO_WAIT);
-	scribe_free_event(event);
-
-	scribe->mutable_flags = scribe->flags | SCRIBE_PS_MUTABLE;
-	sys_set_scribe_flags(0, 0);
-
-	return 0;
-}
-
 void scribe_enter_syscall(struct pt_regs *regs)
 {
 	struct scribe_ps *scribe = current->scribe;
@@ -274,9 +265,6 @@ void scribe_enter_syscall(struct pt_regs *regs)
 	if (should_scribe_syscalls(scribe) &&
 	    should_scribe_regs(scribe) &&
 	    scribe_regs(scribe, regs))
-		return;
-
-	if (bypass_syscall(scribe))
 		return;
 
 	/* It should already be set to false, but let's be sure */
@@ -388,9 +376,9 @@ void scribe_exit_syscall(struct pt_regs *regs)
 	if (is_scribe_syscall(scribe->nr_syscall))
 		return;
 
-	if (scribe->mutable_flags & SCRIBE_PS_MUTABLE) {
-		sys_set_scribe_flags(0, scribe->mutable_flags);
-		scribe->mutable_flags = 0;
+	if (scribe->commit_sys_reset_flags) {
+		scribe_set_flags(scribe, scribe->commit_sys_reset_flags,
+				 SCRIBE_PERMANANT);
 		return;
 	}
 
@@ -439,7 +427,8 @@ static struct scribe_ps *find_process_by_pid(pid_t pid)
 	return t->scribe;
 }
 
-static int do_scribe_flags(pid_t pid, unsigned long *in_flags,
+static int do_scribe_flags(pid_t pid,
+			   unsigned long *in_flags, int duration,
 			   unsigned long __user *out_flags)
 {
 	struct scribe_ps *scribe;
@@ -457,12 +446,8 @@ static int do_scribe_flags(pid_t pid, unsigned long *in_flags,
 		goto out;
 
 	old_flags = scribe->flags;
-	if (in_flags) {
-		/* We allow only enable flags to be set */
-		scribe->flags &= ~SCRIBE_PS_ENABLE_ALL;
-		scribe->flags |= *in_flags & SCRIBE_PS_ENABLE_ALL;
-		scribe_mem_reload(scribe);
-	}
+	if (in_flags)
+		scribe_set_flags(scribe, *in_flags, duration);
 
 	err = 0;
 out:
@@ -476,11 +461,12 @@ out:
 SYSCALL_DEFINE2(get_scribe_flags, pid_t, pid,
 		unsigned long __user *, flags)
 {
-	return do_scribe_flags(pid, NULL, flags);
+	return do_scribe_flags(pid, NULL, 0, flags);
 }
 
-SYSCALL_DEFINE2(set_scribe_flags, pid_t, pid,
-		unsigned long, flags)
+SYSCALL_DEFINE3(set_scribe_flags, pid_t, pid,
+		unsigned long, flags,
+		int, duration)
 {
-	return do_scribe_flags(pid, &flags, NULL);
+	return do_scribe_flags(pid, &flags, duration, NULL);
 }

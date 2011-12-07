@@ -1017,7 +1017,7 @@ int init_scribe(struct task_struct *p, struct scribe_context *ctx,
 	scribe_get_context(ctx);
 
 	scribe->flags = flags & SCRIBE_PS_ENABLE_ALL;
-	scribe->mutable_flags = 0;
+	scribe->commit_sys_reset_flags = 0;
 	scribe->ctx = ctx;
 	scribe->p = p;
 	scribe->bmark_waiting = 0;

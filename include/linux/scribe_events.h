@@ -205,10 +205,9 @@ SCRIBE_EVENT(sig_handled,
 	__field(__u8, nr)
 )
 
-SCRIBE_EVENT(ignore_syscall)
-
 SCRIBE_EVENT(set_flags,
 	__field(__u32, flags)
+	__field(__u8, duration)
 )
 
 /* Command events */

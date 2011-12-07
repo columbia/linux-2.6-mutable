@@ -486,7 +486,7 @@ struct scribe_ps {
 	struct list_head node;
 	struct rcu_head rcu;
 
-	int flags;
+	unsigned long flags;
 	struct scribe_context *ctx;
 
 	struct task_struct *p;
@@ -495,7 +495,7 @@ struct scribe_ps {
 
 	scribe_insert_point_t syscall_ip;
 	int in_syscall;
-	int mutable_flags;
+	unsigned long commit_sys_reset_flags;
 	int nr_syscall;
 	bool need_syscall_ret;
 	long orig_ret;
