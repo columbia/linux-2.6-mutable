@@ -985,7 +985,8 @@ static void posix_cpu_timers_init(struct task_struct *tsk)
 
 #ifdef CONFIG_SCRIBE
 
-int init_scribe(struct task_struct *p, struct scribe_context *ctx)
+int init_scribe(struct task_struct *p, struct scribe_context *ctx,
+		unsigned long flags)
 {
 	struct scribe_ps *scribe;
 	int ret = -EINVAL;
@@ -1015,7 +1016,7 @@ int init_scribe(struct task_struct *p, struct scribe_context *ctx)
 
 	scribe_get_context(ctx);
 
-	scribe->flags = 0;
+	scribe->flags = flags & SCRIBE_PS_ENABLE_ALL;
 	scribe->mutable_flags = 0;
 	scribe->ctx = ctx;
 	scribe->p = p;
@@ -1039,7 +1040,8 @@ err:
 
 static int copy_scribe(unsigned long long clone_flags, struct task_struct *p)
 {
-	if (!is_scribed(current->scribe))
+	struct scribe_ps *scribe = current->scribe;
+	if (!is_scribed(scribe))
 		return 0;
 
 	/*
@@ -1047,10 +1049,8 @@ static int copy_scribe(unsigned long long clone_flags, struct task_struct *p)
 	 * that task in its pid namespace. attach_pid() happens at the end of
 	 * copy process, so we need to separately: 1) allocate the memory,
 	 * 2) trigger the record/replay.
-	 *
-	 * TODO The scribe enable/disable flags should be inherited.
 	 */
-	return init_scribe(p, current->scribe->ctx);
+	return init_scribe(p, scribe->ctx, scribe->flags);
 }
 
 #else /* CONFIG_SCRIBE */

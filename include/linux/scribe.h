@@ -657,7 +657,8 @@ static inline int scribe_mm_disabled(struct scribe_ps *scribe)
 	return scribe->ctx->flags & SCRIBE_DISABLE_MM;
 }
 
-extern int init_scribe(struct task_struct *p, struct scribe_context *ctx);
+extern int init_scribe(struct task_struct *p, struct scribe_context *ctx,
+		       unsigned long flags);
 extern void exit_scribe(struct task_struct *p);
 
 extern int scribe_set_attach_on_exec(struct scribe_context *ctx, int enable);

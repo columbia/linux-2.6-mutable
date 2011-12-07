@@ -449,11 +449,11 @@ int scribe_set_attach_on_exec(struct scribe_context *ctx, int enable)
 	if (!enable)
 		return 0;
 
-	ret = init_scribe(p, ctx);
+	ret = init_scribe(p, ctx, SCRIBE_PS_ENABLE_ALL);
 	if (ret)
 		return ret;
 
-	p->scribe->flags = SCRIBE_PS_ATTACH_ON_EXEC;
+	p->scribe->flags |= SCRIBE_PS_ATTACH_ON_EXEC;
 
 	return 0;
 }
@@ -543,7 +543,6 @@ void scribe_attach(struct scribe_ps *scribe)
 	/* ctx->flags must be read within the critical region */
 	scribe->flags |= (ctx->flags & SCRIBE_RECORD) ? SCRIBE_PS_RECORD : 0;
 	scribe->flags |= (ctx->flags & SCRIBE_REPLAY) ? SCRIBE_PS_REPLAY : 0;
-	scribe->flags |= SCRIBE_PS_ENABLE_ALL;
 
 	spin_unlock(&ctx->tasks_lock);
 
