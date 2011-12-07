@@ -205,6 +205,8 @@ SCRIBE_EVENT(sig_handled,
 	__field(__u8, nr)
 )
 
+SCRIBE_EVENT(ignore_syscall)
+
 /* Command events */
 SCRIBE_START_COMMAND_DECL
 

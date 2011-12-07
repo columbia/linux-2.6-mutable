@@ -218,6 +218,29 @@ static int get_nr_syscall(struct pt_regs *regs)
 	return nr;
 }
 
+static int bypass_syscall(struct scribe_ps *scribe)
+{
+	struct scribe_event *event;
+
+	if (!is_replaying(scribe))
+		return 0;
+
+	event = scribe_peek_event(scribe->queue, SCRIBE_WAIT);
+	if (IS_ERR(event))
+		return PTR_ERR(event);
+
+	if (event->type != SCRIBE_EVENT_IGNORE_SYSCALL)
+		return 0;
+
+	event = scribe_dequeue_event(scribe->queue, SCRIBE_NO_WAIT);
+	scribe_free_event(event);
+
+	scribe->mutable_flags = sys_set_scribe_flags(0);
+	scribe->mutable_flags |= SCRIBE_PS_MUTABLE;
+
+	return 0;
+}
+
 void scribe_enter_syscall(struct pt_regs *regs)
 {
 	struct scribe_ps *scribe = current->scribe;
@@ -233,6 +256,9 @@ void scribe_enter_syscall(struct pt_regs *regs)
 	if (should_scribe_syscalls(scribe) &&
 	    should_scribe_regs(scribe) &&
 	    scribe_regs(scribe, regs))
+		return;
+
+	if (bypass_syscall(scribe))
 		return;
 
 	/* It should already be set to false, but let's be sure */
