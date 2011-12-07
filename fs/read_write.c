@@ -384,10 +384,13 @@ static ssize_t scribe_do_read(struct file *file, char __user *buf,
 	scribe_need_syscall_ret(scribe);
 
 	if (is_replaying(scribe)) {
-		len = scribe->orig_ret;
+		force_block = 1;
+		if (scribe->orig_ret == 0 && is_deterministic(file))
+			goto out;
+		if (len > scribe->orig_ret || scribe->orig_ret < 0)
+			len = scribe->orig_ret;
 		if (len <= 0)
 			return len;
-		force_block = 1;
 	}
 
 	if (is_deterministic(file))
@@ -528,7 +531,8 @@ static ssize_t scribe_do_write(struct file *file, const char __user *buf,
 	scribe_need_syscall_ret(scribe);
 
 	if (is_replaying(scribe)) {
-		count = scribe->orig_ret;
+		if (count > scribe->orig_ret || scribe->orig_ret < 0)
+			count = scribe->orig_ret;
 		if (count <= 0)
 			return count;
 		force_block = 1;
@@ -968,7 +972,13 @@ static ssize_t scribe_do_readv_writev(int type, struct file *file,
 	scribe_need_syscall_ret(scribe);
 
 	if (is_replaying(scribe)) {
-		len = scribe->orig_ret;
+		force_block = 1;
+		if (type == READ &&
+		    scribe->orig_ret == 0 && is_deterministic(file))
+			goto out;
+
+		if (len > scribe->orig_ret || scribe->orig_ret < 0)
+			len = scribe->orig_ret;
 		if (len <= 0) {
 			rw_copy_check_uvector(type, uvector, nr_segs,
 					      ARRAY_SIZE(iovstack), iovstack,
@@ -976,7 +986,6 @@ static ssize_t scribe_do_readv_writev(int type, struct file *file,
 			ret = len;
 			goto free;
 		}
-		force_block = 1;
 	}
 
 	if (type == READ) {
