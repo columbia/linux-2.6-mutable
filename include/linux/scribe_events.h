@@ -207,6 +207,10 @@ SCRIBE_EVENT(sig_handled,
 
 SCRIBE_EVENT(ignore_syscall)
 
+SCRIBE_EVENT(set_flags,
+	__field(__u32, flags)
+)
+
 /* Command events */
 SCRIBE_START_COMMAND_DECL
 

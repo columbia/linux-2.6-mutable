@@ -588,6 +588,8 @@ void scribe_attach(struct scribe_ps *scribe)
 	BUG_ON(scribe_mem_init_st(scribe));
 
 	notify_attach(ctx, scribe);
+
+	scribe_handle_custom_actions(scribe);
 }
 
 void __scribe_detach(struct scribe_ps *scribe)

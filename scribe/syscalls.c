@@ -21,6 +21,28 @@ union scribe_syscall_event_union {
 	struct scribe_event_syscall_extra *extra;
 };
 
+void scribe_handle_custom_actions(struct scribe_ps *scribe)
+{
+	struct scribe_event_set_flags *event_sf;
+	struct scribe_event *event;
+
+	if (!is_replaying(scribe))
+		return;
+
+	event = scribe_peek_event(scribe->queue, SCRIBE_WAIT);
+	if (IS_ERR(event))
+		return;
+
+	if (event->type == SCRIBE_EVENT_SET_FLAGS) {
+		event_sf = (struct scribe_event_set_flags *)event;
+		sys_set_scribe_flags(0, event_sf->flags);
+	} else
+		return;
+
+	event = scribe_dequeue_event(scribe->queue, SCRIBE_NO_WAIT);
+	scribe_free_event(event);
+}
+
 static int scribe_regs(struct scribe_ps *scribe, struct pt_regs *regs)
 {
 	struct scribe_event_regs *event_regs;
@@ -268,6 +290,8 @@ void scribe_enter_syscall(struct pt_regs *regs)
 	}
 
 	__scribe_forbid_uaccess(scribe);
+
+	scribe_handle_custom_actions(scribe);
 
 	scribe_bookmark_point(SCRIBE_BOOKMARK_PRE_SYSCALL);
 
