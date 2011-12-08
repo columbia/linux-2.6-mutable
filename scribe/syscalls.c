@@ -1,6 +1,4 @@
 /*
-		scribe_dequeue_event_specific(scribe,
-					      SCRIBE_EVENT_SYSCALL_EXTRA);
  * Copyright (C) 2010 Oren Laadan <orenl@cs.columbia.edu>
  * Copyright (C) 2010 Nicolas Viennot <nicolas@viennot.biz>
  *
@@ -27,8 +25,15 @@ static void scribe_set_flags(struct scribe_ps *scribe,
 			     unsigned long flags,
 			     int duration)
 {
-	if (duration == SCRIBE_UNTIL_NEXT_SYSCALL)
+	if (duration == SCRIBE_UNTIL_NEXT_SYSCALL) {
 		scribe->commit_sys_reset_flags = scribe->flags;
+
+		/*
+		 * We prefer to disable signals during the execution
+		 * of the syscall.
+		 */
+		clear_thread_flag(TIF_SIGPENDING);
+	}
 	else
 		scribe->commit_sys_reset_flags = 0;
 
@@ -173,6 +178,7 @@ static int scribe_need_syscall_ret_replay(struct scribe_ps *scribe)
 			scribe_mutation(scribe, SCRIBE_EVENT_DIVERGE_SYSCALL,
 					.nr = scribe->nr_syscall);
 			scribe_set_flags(scribe, 0, SCRIBE_UNTIL_NEXT_SYSCALL);
+			scribe->orig_ret = 0;
 			return 0;
 		}
 	}
@@ -371,11 +377,10 @@ void scribe_exit_syscall(struct pt_regs *regs)
 	if (scribe->commit_sys_reset_flags) {
 		scribe_set_flags(scribe, scribe->commit_sys_reset_flags,
 				 SCRIBE_PERMANANT);
-		return;
+	} else {
+		scribe_commit_syscall(scribe, regs,
+				      syscall_get_return_value(current, regs));
 	}
-
-	scribe_commit_syscall(scribe, regs,
-			      syscall_get_return_value(current, regs));
 
 	scribe_bookmark_point(SCRIBE_BOOKMARK_POST_SYSCALL);
 
