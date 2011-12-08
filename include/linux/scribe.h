@@ -415,6 +415,7 @@ extern void scribe_wake_all_fake_sig(struct scribe_context *ctx);
 			.h.h.type = _type,				\
 			.h.pid = sp->queue->pid,			\
 			.h.fatal = 0,					\
+			.h.num_ev_consumed = (sp)->queue->num_ev_consumed, \
 			.h.last_event_offset = (sp)->queue->last_event_offset, \
 			__VA_ARGS__					\
 		};							\

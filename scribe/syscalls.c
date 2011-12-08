@@ -1,4 +1,6 @@
 /*
+		scribe_dequeue_event_specific(scribe,
+					      SCRIBE_EVENT_SYSCALL_EXTRA);
  * Copyright (C) 2010 Oren Laadan <orenl@cs.columbia.edu>
  * Copyright (C) 2010 Nicolas Viennot <nicolas@viennot.biz>
  *
@@ -61,7 +63,6 @@ void scribe_handle_custom_actions(struct scribe_ps *scribe)
 static int scribe_regs(struct scribe_ps *scribe, struct pt_regs *regs)
 {
 	struct scribe_event_regs *event_regs;
-	struct scribe_event *event;
 	struct pt_regs regs_tmp;
 	int ret;
 
@@ -87,34 +88,7 @@ static int scribe_regs(struct scribe_ps *scribe, struct pt_regs *regs)
 			scribe_kill(scribe->ctx, -ENOMEM);
 			return -ENOMEM;
 		}
-	} else if (should_strict_replay(scribe)) {
-		/* mutable replay */
-		event = scribe_peek_event(scribe->queue, SCRIBE_WAIT);
-		if (IS_ERR(event))
-			return PTR_ERR(event);
-
-		if (event->type != SCRIBE_EVENT_REGS)
-			return -EDIVERGE;
-
-		event_regs = (struct scribe_event_regs *)event;
-		if (event_regs->regs.orig_ax != regs->orig_ax)
-			goto mutation;
-
-		/*
-		 * FIXME we should check the arguments for each syscall
-		 * indead. So we need a way of knowing the number of arguments
-		 * in advance, per syscalls
-		 */
-		if (scribe->nr_syscall == __NR_write &&
-		    (event_regs->regs.bx != regs->bx ||
-		     event_regs->regs.cx != regs->cx ||
-		     event_regs->regs.dx != regs->dx))
-			goto mutation;
-
-		event = scribe_dequeue_event(scribe->queue, SCRIBE_NO_WAIT);
-		scribe_free_event(event);
 	} else {
-		/* regular replay */
 		event_regs = scribe_dequeue_event_specific(scribe,
 							   SCRIBE_EVENT_REGS);
 		if (IS_ERR(event_regs))
@@ -129,12 +103,7 @@ static int scribe_regs(struct scribe_ps *scribe, struct pt_regs *regs)
 			return -EDIVERGE;
 		}
 	}
-	return 0;
 
-mutation:
-	scribe_mutation(scribe, SCRIBE_EVENT_DIVERGE_SYSCALL,
-			.nr = scribe->nr_syscall);
-	scribe_set_flags(scribe, 0, SCRIBE_UNTIL_NEXT_SYSCALL);
 	return 0;
 }
 
@@ -164,31 +133,54 @@ static int scribe_need_syscall_ret_replay(struct scribe_ps *scribe)
 	union scribe_syscall_event_union event;
 	int syscall_extra = should_scribe_syscall_extra(scribe);
 
-	if (syscall_extra)
-		event.extra = scribe_dequeue_event_specific(scribe,
-				      SCRIBE_EVENT_SYSCALL_EXTRA);
-	else
-		event.regular = scribe_dequeue_event_specific(scribe,
-				      SCRIBE_EVENT_SYSCALL);
-
-	if (IS_ERR(event.generic))
-		return PTR_ERR(event.generic);
-
-	if (syscall_extra) {
-		if (event.extra->nr != scribe->nr_syscall) {
-			scribe_diverge(scribe, SCRIBE_EVENT_DIVERGE_SYSCALL,
-				       .nr = scribe->nr_syscall);
-		}
-		scribe->orig_ret = event.extra->ret;
-	} else
-		scribe->orig_ret = event.regular->ret;
-
-	scribe_free_event(event.generic);
-
 	/*
 	 * FIXME Do something about non deterministic errors such as
 	 * -ENOMEM.
 	 */
+
+	if (!syscall_extra) {
+		event.regular = scribe_dequeue_event_specific(scribe,
+				      SCRIBE_EVENT_SYSCALL);
+		if (IS_ERR(event.generic))
+			return PTR_ERR(event.generic);
+
+		scribe->orig_ret = event.regular->ret;
+		scribe_free_event(event.generic);
+		return 0;
+	}
+
+	/* syscall_extra */
+
+	event.generic = scribe_peek_event(scribe->queue, SCRIBE_WAIT);
+	if (IS_ERR(event.generic))
+		return PTR_ERR(event.generic);
+
+	if (event.generic->type != SCRIBE_EVENT_SYSCALL_EXTRA) {
+		scribe_dequeue_event_specific(scribe,
+					      SCRIBE_EVENT_SYSCALL_EXTRA);
+		return -EDIVERGE;
+	}
+
+	if (event.extra->nr != scribe->nr_syscall) {
+		if (should_strict_replay(scribe)) {
+			event.extra = scribe_dequeue_event_specific(scribe,
+						      SCRIBE_EVENT_SYSCALL_EXTRA);
+			scribe_free_event(event.generic);
+			scribe_diverge(scribe, SCRIBE_EVENT_DIVERGE_SYSCALL,
+				       .nr = scribe->nr_syscall);
+			return -EDIVERGE;
+		} else {
+			scribe_mutation(scribe, SCRIBE_EVENT_DIVERGE_SYSCALL,
+					.nr = scribe->nr_syscall);
+			scribe_set_flags(scribe, 0, SCRIBE_UNTIL_NEXT_SYSCALL);
+			return 0;
+		}
+	}
+
+	event.generic = scribe_dequeue_event(scribe->queue, SCRIBE_NO_WAIT);
+	scribe->orig_ret = event.extra->ret;
+	scribe_free_event(event.generic);
+
 	return 0;
 }
 
@@ -262,11 +254,6 @@ void scribe_enter_syscall(struct pt_regs *regs)
 	if (is_scribe_syscall(scribe->nr_syscall))
 		return;
 
-	if (should_scribe_syscalls(scribe) &&
-	    should_scribe_regs(scribe) &&
-	    scribe_regs(scribe, regs))
-		return;
-
 	/* It should already be set to false, but let's be sure */
 	scribe->need_syscall_ret = false;
 
@@ -293,6 +280,11 @@ void scribe_enter_syscall(struct pt_regs *regs)
 	if (should_scribe_syscall_ret(scribe) ||
 	    is_interruptible_syscall(scribe->nr_syscall))
 		__scribe_need_syscall_ret(scribe);
+
+	if (should_scribe_syscalls(scribe) &&
+	    should_scribe_regs(scribe) &&
+	    scribe_regs(scribe, regs))
+		return;
 
 	recalc_sigpending();
 }
