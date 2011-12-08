@@ -977,8 +977,16 @@ static ssize_t scribe_do_readv_writev(int type, struct file *file,
 		    scribe->orig_ret == 0 && is_deterministic(file))
 			goto out;
 
-		if (len > scribe->orig_ret || scribe->orig_ret < 0)
-			len = scribe->orig_ret;
+
+		/*
+		 * FIXME we need len but we don't have it, and we cannot
+		 * really read userspace buffers because of memory sync
+		 *
+		 *	if (len > scribe->orig_ret || scribe->orig_ret < 0)
+		 *		len = scribe->orig_ret;
+		*/
+
+		len = scribe->orig_ret;
 		if (len <= 0) {
 			rw_copy_check_uvector(type, uvector, nr_segs,
 					      ARRAY_SIZE(iovstack), iovstack,
