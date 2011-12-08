@@ -537,6 +537,8 @@ int scribe_enter_fenced_region(int region)
 	struct scribe_queue *queue;
 	unsigned int serial;
 
+	return 0;
+
 	if (!is_scribed(scribe))
 		return 0;
 
@@ -580,6 +582,7 @@ void scribe_leave_fenced_region(int region)
 	struct scribe_ps *scribe = current->scribe;
 	struct scribe_queue *queue;
 
+	return;
 	if (!is_scribed(scribe))
 		return;
 
