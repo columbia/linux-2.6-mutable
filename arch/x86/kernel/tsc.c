@@ -970,7 +970,7 @@ void __init tsc_init(void)
 
 int scribe_handle_rdtsc(struct scribe_ps *scribe, struct pt_regs *regs)
 {
-	int ret;
+	int ret = 0;
 	struct scribe_event_rdtsc *event;
 	u64 tsc;
 	u32 low, high;
@@ -987,16 +987,18 @@ int scribe_handle_rdtsc(struct scribe_ps *scribe, struct pt_regs *regs)
 		if (ret) {
 			/* FIXME do something smarter */
 			scribe_kill(scribe->ctx, -ENOMEM);
-			return -ENOMEM;
+			ret = -ENOMEM;
 		}
 	} else {
 		event = scribe_dequeue_event_specific(scribe,
 						      SCRIBE_EVENT_RDTSC);
-		if (IS_ERR(event))
-			return PTR_ERR(event);
-
-		tsc = event->tsc;
-		scribe_free_event(event);
+		if (IS_ERR(event)) {
+			ret = -PTR_ERR(event);
+			rdtscll(tsc);
+		} else {
+			tsc = event->tsc;
+			scribe_free_event(event);
+		}
 	}
 
 skip:
@@ -1011,5 +1013,5 @@ skip:
 #endif
 	regs->ip += 2;
 
-	return 0;
+	return ret;
 }
