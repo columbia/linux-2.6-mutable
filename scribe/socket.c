@@ -219,6 +219,9 @@ static int scribe_sendmsg(struct kiocb *iocb, struct socket *sock,
 		return ret;
 	}
 
+	if (scribe->orig_ret == 0)
+		return 0;
+
 	scribe_data_need_info();
 
 	err = scribe_result_cond(
@@ -259,6 +262,9 @@ static int scribe_recvmsg(struct kiocb *iocb, struct socket *sock,
 		scribe_data_pop_flags();
 		return ret;
 	}
+
+	if (scribe->orig_ret == 0)
+		return 0;
 
 	scribe_data_non_det_need_info();
 
