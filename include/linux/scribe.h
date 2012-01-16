@@ -380,6 +380,9 @@ extern void scribe_wake_all_fake_sig(struct scribe_context *ctx);
 	if (__event) {							\
 		__event->h.type = _type;				\
 		__event->pid = (sp)->queue->pid;			\
+		__event->fatal = 1;					\
+		__event->num_ev_consumed = (sp)->queue->num_ev_consumed; \
+		__event->last_event_offset = (sp)->queue->last_event_offset; \
 	} else								\
 		__event = ERR_PTR(-EDIVERGE);				\
 	(struct##_type *)__event;					\
@@ -673,9 +676,18 @@ extern void scribe_detach(struct scribe_ps *scribe);
 extern bool scribe_maybe_detach(struct scribe_ps *scribe);
 
 extern size_t scribe_emul_copy_to_user(struct scribe_ps *scribe,
-				       char __user *buf, ssize_t len);
+				       void __user *buf, ssize_t len);
 extern size_t scribe_emul_copy_from_user(struct scribe_ps *scribe,
-					 char __user *buf, ssize_t len);
+					 void __user *buf, ssize_t len);
+
+extern size_t scribe_emul_copy_to_user_iov(struct scribe_ps *scribe,
+					   struct iovec *iov,
+					   unsigned long nr_segs,
+					   size_t len);
+extern size_t scribe_emul_copy_from_user_iov(struct scribe_ps *scribe,
+					     struct iovec *iov,
+					     unsigned long nr_segs,
+					     size_t len);
 
 extern void __scribe_allow_uaccess(struct scribe_ps *scribe);
 extern void __scribe_forbid_uaccess(struct scribe_ps *scribe);

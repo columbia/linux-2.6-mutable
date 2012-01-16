@@ -460,7 +460,7 @@ static void scribe_copy_to_user_recorded(void __user *to, long n,
  * if @buf is NULL, the user pointer will be read from the log file
  */
 size_t scribe_emul_copy_to_user(struct scribe_ps *scribe,
-				char __user *buf, ssize_t len)
+				void __user *buf, ssize_t len)
 {
 	union scribe_event_data_union data_event;
 	struct scribe_event *event;
@@ -491,7 +491,7 @@ size_t scribe_emul_copy_to_user(struct scribe_ps *scribe,
 		if (!has_user_buf) {
 			if (event->type != SCRIBE_EVENT_DATA_EXTRA)
 				return ret;
-			buf = (char __user *)data_event.extra->user_ptr;
+			buf = (void __user *)data_event.extra->user_ptr;
 		}
 
 		if (event->type == SCRIBE_EVENT_DATA_EXTRA) {
@@ -513,7 +513,7 @@ size_t scribe_emul_copy_to_user(struct scribe_ps *scribe,
  * if @buf is NULL, the user pointer will be read from the log file
  */
 size_t scribe_emul_copy_from_user(struct scribe_ps *scribe,
-				  char __user *buf, ssize_t len)
+				  void __user *buf, ssize_t len)
 {
 	union scribe_event_data_union data_event;
 	struct scribe_event *event;
@@ -548,9 +548,9 @@ size_t scribe_emul_copy_from_user(struct scribe_ps *scribe,
 
 		if (!has_user_buf) {
 			if (event->type == SCRIBE_EVENT_DATA_INFO)
-				buf = (char __user *)data_event.info->user_ptr;
+				buf = (void __user *)data_event.info->user_ptr;
 			else if (event->type == SCRIBE_EVENT_DATA_EXTRA)
-				buf = (char __user *)data_event.extra->user_ptr;
+				buf = (void __user *)data_event.extra->user_ptr;
 			else
 				return ret;
 		}
@@ -577,6 +577,44 @@ size_t scribe_emul_copy_from_user(struct scribe_ps *scribe,
 			__scribe_forbid_uaccess(scribe);
 
 		scribe_free_event(event);
+	}
+	return ret;
+}
+
+size_t scribe_emul_copy_to_user_iov(struct scribe_ps *scribe,
+				    struct iovec *iov,
+				    unsigned long nr_segs,
+				    size_t len)
+{
+	int i;
+	size_t to_xfer, xfered, ret = 0;
+
+	for (i = 0; i < nr_segs; i++) {
+		to_xfer = min(iov[i].iov_len, len);
+		xfered = scribe_emul_copy_to_user(scribe,
+						  iov[i].iov_base, to_xfer);
+		ret += xfered;
+		if (xfered != to_xfer)
+			return ret;
+	}
+	return ret;
+}
+
+size_t scribe_emul_copy_from_user_iov(struct scribe_ps *scribe,
+				      struct iovec *iov,
+				      unsigned long nr_segs,
+				      size_t len)
+{
+	int i;
+	size_t to_xfer, xfered, ret = 0;
+
+	for (i = 0; i < nr_segs; i++) {
+		to_xfer = min(iov[i].iov_len, len);
+		xfered = scribe_emul_copy_from_user(scribe,
+						    iov[i].iov_base, to_xfer);
+		ret += xfered;
+		if (xfered != to_xfer)
+			return ret;
 	}
 	return ret;
 }

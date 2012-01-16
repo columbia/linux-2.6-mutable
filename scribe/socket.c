@@ -147,8 +147,6 @@ static int scribe_setsockopt(struct socket *sock, int level,
 	struct scribe_ps *scribe = current->scribe;
 	int ret, err;
 
-	scribe_data_need_info();
-
 	err = scribe_result(
 		ret, sock->real_ops->setsockopt(sock, level, optname,
 						optval, optlen));
@@ -158,7 +156,7 @@ static int scribe_setsockopt(struct socket *sock, int level,
 		return ret;
 
 	if (is_replaying(scribe))
-		scribe_emul_copy_from_user(scribe, NULL, optlen);
+		scribe_emul_copy_from_user(scribe, optval, INT_MAX);
 	return ret;
 }
 
@@ -169,7 +167,7 @@ static int scribe_getsockopt(struct socket *sock, int level,
 	struct scribe_ps *scribe = current->scribe;
 	int ret, err;
 
-	scribe_data_non_det_need_info();
+	scribe_data_non_det();
 
 	err = scribe_result(
 		ret, sock->real_ops->getsockopt(sock, level, optname,
@@ -179,8 +177,11 @@ static int scribe_getsockopt(struct socket *sock, int level,
 	if (ret < 0)
 		return ret;
 
-	if (is_replaying(scribe))
-		scribe_emul_copy_to_user(scribe, NULL, INT_MAX);
+	if (is_replaying(scribe) && optlen) {
+		scribe_emul_copy_from_user(scribe, optlen, sizeof(int));
+		scribe_emul_copy_to_user(scribe, optlen, sizeof(int));
+		scribe_emul_copy_to_user(scribe, optval, INT_MAX);
+	}
 	return ret;
 }
 
@@ -222,8 +223,6 @@ static int scribe_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (scribe->orig_ret == 0)
 		return 0;
 
-	scribe_data_need_info();
-
 	err = scribe_result_cond(
 		ret, sock->real_ops->sendmsg(iocb, sock, m, total_len),
 		!scribe_is_in_read_write(scribe) || ret > 0);
@@ -232,8 +231,10 @@ static int scribe_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (ret <= 0)
 		goto out;
 
-	if (is_replaying(scribe))
-		scribe_emul_copy_from_user(scribe, NULL, INT_MAX);
+	if (is_replaying(scribe)) {
+		scribe_emul_copy_from_user_iov(scribe, m->msg_iov,
+					       m->msg_iovlen, ret);
+	}
 
 out:
 	scribe_data_pop_flags();
@@ -266,7 +267,7 @@ static int scribe_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (scribe->orig_ret == 0)
 		return 0;
 
-	scribe_data_non_det_need_info();
+	scribe_data_non_det();
 
 	err = scribe_result_cond(
 		ret, sock->real_ops->recvmsg(iocb, sock, m, total_len, flags),
@@ -276,8 +277,10 @@ static int scribe_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (ret <= 0)
 		goto out;
 
-	if (is_replaying(scribe))
-		scribe_emul_copy_to_user(scribe, NULL, INT_MAX);
+	if (is_replaying(scribe)) {
+		scribe_emul_copy_to_user_iov(scribe, m->msg_iov,
+					     m->msg_iovlen, ret);
+	}
 
 	err = scribe_value(&m->msg_namelen);
 	if (err)
