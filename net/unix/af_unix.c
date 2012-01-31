@@ -1668,8 +1668,6 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	bool can_epipe = true;
 	struct scribe_ps *scribe = current->scribe;
 
-	scribe_data_need_info();
-
 	if (is_replaying(scribe)) {
 		/*
 		 * If we failed during the recording, we have to fail during
