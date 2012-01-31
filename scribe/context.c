@@ -687,7 +687,7 @@ bool scribe_maybe_detach(struct scribe_ps *scribe)
 	scribe_detach(scribe);
 	exit_scribe(scribe->p);
 
-	wait_event(ctx->tasks_wait, list_empty(&ctx->tasks) || ctx->last_error);
+	//wait_event(ctx->tasks_wait, list_empty(&ctx->tasks) || ctx->last_error);
 	/*
 	 * FIXME possible race: when list_empty(ctx->task), the context might
 	 * have started again, and other tasks might have joined the context.
