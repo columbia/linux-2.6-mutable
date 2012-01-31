@@ -25,7 +25,7 @@ void scribe_init_res_map(struct scribe_res_map *map,
 void scribe_exit_res_map(struct scribe_res_map *map)
 {
 	BUG_ON(map->ops->hash_fn);
-	BUG_ON(!hlist_empty(&map->head[0]));
+	WARN_ON(!hlist_empty(&map->head[0]));
 }
 
 struct scribe_res_map *scribe_alloc_res_map(struct scribe_res_map_ops *ops,

@@ -100,6 +100,7 @@ static void acquire_res_inode(struct scribe_context *ctx,
 	BUG_ON(!*lock_dropped);
 	spin_lock(&inode_lock);
 	__iget(inode);
+	__iget(inode);
 	spin_unlock(&inode_lock);
 }
 
@@ -107,11 +108,13 @@ static void release_res_inode(struct scribe_resource *res, bool *lock_dropped)
 {
 	struct scribe_context *ctx = res->ctx;
 	struct inode *inode = __get_inode_from_res(res);
+	struct super_block *sb = inode->i_sb;
 
 	release_mres(res, NULL);
 	spin_unlock_bh(&ctx->res_ctx->lock);
 	*lock_dropped = true;
 	/* iput sleeps */
+	iput(inode);
 	iput(inode);
 }
 
