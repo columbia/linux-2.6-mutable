@@ -144,19 +144,23 @@ static int scribe_setsockopt(struct socket *sock, int level,
 			     int optname, char __user *optval,
 			     unsigned int optlen)
 {
-	struct scribe_ps *scribe = current->scribe;
 	int ret, err;
+
+	scribe_allow_uaccess();
+	scribe_data_ignore();
 
 	err = scribe_result(
 		ret, sock->real_ops->setsockopt(sock, level, optname,
 						optval, optlen));
+
+	scribe_data_det();
+	scribe_forbid_uaccess();
+
 	if (err)
 		return err;
 	if (ret < 0)
 		return ret;
 
-	if (is_replaying(scribe))
-		scribe_emul_copy_from_user(scribe, optval, INT_MAX);
 	return ret;
 }
 
