@@ -1026,6 +1026,9 @@ static void scribe_do_exit(struct task_struct *p, long code)
 	if (!is_scribed(scribe))
 		goto out;
 
+	if (is_replaying(scribe))
+		code = scribe->orig_ret;
+
 	/*
 	 * If we are in a syscall, we need to record the end of the syscall
 	 * properly (it's going to be sys_exit_group()).
