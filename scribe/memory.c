@@ -96,6 +96,7 @@ struct scribe_page_key {
 struct scribe_page {
 	struct hlist_node		node;	/* hash node */
 	struct scribe_page_key		key;	/* hash key */
+	unsigned int			id;
 
 	/* the owner of the page, if any */
 	spinlock_t			owners_lock;
@@ -130,6 +131,7 @@ struct page_hash_bucket {
 struct scribe_mm_context {
 	spinlock_t		obj_refs_lock;
 	struct list_head	obj_refs;
+	atomic_t		next_id;
 
 	struct page_hash_bucket buckets[SCRIBE_PAGE_HASH_SIZE];
 };
@@ -499,6 +501,8 @@ struct scribe_mm_context *scribe_alloc_mm_context(void)
 	for (i = 0; i < SCRIBE_PAGE_HASH_SIZE; i++)
 		init_page_hash_bucket(&mm_ctx->buckets[i]);
 
+	atomic_set(&mm_ctx->next_id, 0);
+
 	return mm_ctx;
 }
 
@@ -584,6 +588,7 @@ static struct scribe_page *get_scribe_page(struct scribe_mm_context *mm_ctx,
 	}
 
 	page = page_alloc;
+	page->id = atomic_inc_return(&mm_ctx->next_id);
 	hlist_add_head_rcu(&page->node, &hb->pages);
 	spin_unlock(&hb->lock);
 
@@ -1163,11 +1168,13 @@ static int scribe_make_page_owned_log(struct scribe_ps *scribe,
 		if (write_access)
 			ret = scribe_queue_new_event(scribe->queue,
 					SCRIBE_EVENT_MEM_OWNED_WRITE_EXTRA,
+					.id = page->id,
 					.address = address & PAGE_MASK,
 					.serial = serial);
 		else
 			ret = scribe_queue_new_event(scribe->queue,
 					SCRIBE_EVENT_MEM_OWNED_READ_EXTRA,
+					.id = page->id,
 					.address = address & PAGE_MASK,
 					.serial = serial);
 	} else {
