@@ -475,7 +475,7 @@ size_t scribe_emul_copy_to_user(struct scribe_ps *scribe,
 	for (ret = 0; ret < len; ret += data_size, buf += data_size) {
 		/*
 		 * We are peeking events without a regular fence, but that's
-		 * okey since we'll stop once ret >= len.
+		 * okay since we'll stop once ret >= len.
 		 */
 		event = scribe_peek_event(scribe->queue, SCRIBE_WAIT);
 		if (IS_ERR(event))
@@ -510,20 +510,16 @@ size_t scribe_emul_copy_to_user(struct scribe_ps *scribe,
 
 /*
  * emul copy_from_user() calls.
- * if @buf is NULL, the user pointer will be read from the log file
  */
 size_t scribe_emul_copy_from_user(struct scribe_ps *scribe,
 				  void __user *buf, ssize_t len)
 {
 	union scribe_event_data_union data_event;
 	struct scribe_event *event;
-	bool has_user_buf;
 	size_t data_size, ret;
 	unsigned int recorded_flags;
 
 	BUG_ON(scribe->data_flags & SCRIBE_DATA_NON_DETERMINISTIC);
-
-	has_user_buf = buf ? true : false;
 
 	for (ret = 0; ret < len; ret += data_size, buf += data_size) {
 		/*
@@ -545,15 +541,6 @@ size_t scribe_emul_copy_from_user(struct scribe_ps *scribe,
 			data_size = data_event.info->size;
 		else
 			data_size = data_event.generic_sized->size;
-
-		if (!has_user_buf) {
-			if (event->type == SCRIBE_EVENT_DATA_INFO)
-				buf = (void __user *)data_event.info->user_ptr;
-			else if (event->type == SCRIBE_EVENT_DATA_EXTRA)
-				buf = (void __user *)data_event.extra->user_ptr;
-			else
-				return ret;
-		}
 
 		recorded_flags = -1;
 		if (event->type == SCRIBE_EVENT_DATA_EXTRA)

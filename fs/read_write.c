@@ -371,42 +371,54 @@ static ssize_t scribe_do_read(struct file *file, char __user *buf,
 	struct scribe_ps *scribe = current->scribe;
 	int force_block = 0;
 	ssize_t ret;
+	bool allowed_uaccess = false;
+
 
 	if (!is_scribed(scribe))
 		return do_read(file, buf, len, ppos, force_block);
 
 	if (is_kernel_copy())
-		goto out;
+		goto do_real_read;
+
+	scribe_allow_uaccess();
+	allowed_uaccess = true;
 
 	if (!should_scribe_data(scribe))
-		goto out;
+		goto do_real_read;
+
 
 	scribe_need_syscall_ret(scribe);
 
 	if (is_replaying(scribe)) {
 		force_block = 1;
 		if (scribe->orig_ret == 0 && is_deterministic(file))
-			goto out;
+			goto do_real_read;
 		if (len > scribe->orig_ret || scribe->orig_ret < 0)
 			len = scribe->orig_ret;
-		if (len <= 0)
-			return len;
+		if (len <= 0) {
+			ret = len;
+			goto out;
+		}
 	}
 
 	if (is_deterministic(file))
-		goto out;
+		goto do_real_read;
 
 	scribe_data_non_det();
 
 	if (is_recording(scribe))
-		goto out;
+		goto do_real_read;
 
-	return scribe_emul_copy_to_user(scribe, buf, len);
+	ret = scribe_emul_copy_to_user(scribe, buf, len);
+	goto out;
 
-out:
+do_real_read:
 	scribe->in_read_write = true;
 	ret = do_read(file, buf, len, ppos, force_block);
 	scribe->in_read_write = false;
+out:
+	if (allowed_uaccess)
+		scribe_forbid_uaccess();
 	return ret;
 }
 #else

@@ -171,11 +171,14 @@ static int scribe_getsockopt(struct socket *sock, int level,
 	struct scribe_ps *scribe = current->scribe;
 	int ret, err;
 
+	scribe_allow_uaccess();
 	scribe_data_non_det();
 
 	err = scribe_result(
 		ret, sock->real_ops->getsockopt(sock, level, optname,
 						optval, optlen));
+	scribe_forbid_uaccess();
+
 	if (err)
 		return err;
 	if (ret < 0)
@@ -224,9 +227,10 @@ static int scribe_sendmsg(struct kiocb *iocb, struct socket *sock,
 		return ret;
 	}
 
-	if (scribe->orig_ret == 0)
+	if (is_replaying(scribe) && scribe->orig_ret == 0)
 		return 0;
 
+	scribe_allow_uaccess();
 	err = scribe_result_cond(
 		ret, sock->real_ops->sendmsg(iocb, sock, m, total_len),
 		!scribe_is_in_read_write(scribe) || ret > 0);
@@ -241,7 +245,7 @@ static int scribe_sendmsg(struct kiocb *iocb, struct socket *sock,
 	}
 
 out:
-	scribe_data_pop_flags();
+	scribe_forbid_uaccess();
 	return err ?: ret;
 }
 
@@ -268,10 +272,11 @@ static int scribe_recvmsg(struct kiocb *iocb, struct socket *sock,
 		return ret;
 	}
 
-	if (scribe->orig_ret == 0)
+	if (is_replaying(scribe) && scribe->orig_ret == 0)
 		return 0;
 
 	scribe_data_non_det();
+	scribe_allow_uaccess();
 
 	err = scribe_result_cond(
 		ret, sock->real_ops->recvmsg(iocb, sock, m, total_len, flags),
@@ -292,6 +297,7 @@ static int scribe_recvmsg(struct kiocb *iocb, struct socket *sock,
 	err = scribe_buffer(m->msg_name, m->msg_namelen);
 
 out:
+	scribe_forbid_uaccess();
 	scribe_data_pop_flags();
 	return err ?: ret;
 }
