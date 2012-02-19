@@ -595,3 +595,8 @@ void scribe_leave_fenced_region(int region)
 				    region);
 	}
 }
+
+void scribe_reset_fence_numbering(struct scribe_ps *scribe)
+{
+	scribe->queue->fence_serial = 0;
+}

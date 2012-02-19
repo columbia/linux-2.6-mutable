@@ -260,6 +260,8 @@ void scribe_enter_syscall(struct pt_regs *regs)
 	if (is_scribe_syscall(scribe->nr_syscall))
 		return;
 
+	scribe_reset_fence_numbering(scribe);
+
 	/* It should already be set to false, but let's be sure */
 	scribe->need_syscall_ret = false;
 

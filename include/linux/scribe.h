@@ -289,6 +289,7 @@ static inline void scribe_free_event(void *event)
 
 extern int scribe_enter_fenced_region(int region);
 extern void scribe_leave_fenced_region(int region);
+extern void scribe_reset_fence_numbering(struct scribe_ps *scribe);
 
 /* Pump */
 struct scribe_pump;
