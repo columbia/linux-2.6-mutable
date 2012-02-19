@@ -49,8 +49,9 @@ static int scribe_connect(struct socket *sock, struct sockaddr *vaddr,
 					       sockaddr_len, flags);
 	}
 
-	err = scribe_result(
-		ret, sock->real_ops->connect(sock, vaddr, sockaddr_len, flags));
+	err = scribe_result_flags(
+		ret, sock->real_ops->connect(sock, vaddr, sockaddr_len, flags),
+		SCRIBE_PS_ENABLE_MM | SCRIBE_PS_ENABLE_DATA);
 	return err ?: ret;
 }
 
@@ -74,8 +75,10 @@ static int scribe_getname(struct socket *sock, struct sockaddr *addr,
 	if (!is_scribed(scribe))
 		return sock->real_ops->getname(sock, addr, sockaddr_len, peer);
 
-	err = scribe_result(
-		ret, sock->real_ops->getname(sock, addr, sockaddr_len, peer));
+	err = scribe_result_flags(
+		ret, sock->real_ops->getname(sock, addr, sockaddr_len, peer),
+		SCRIBE_PS_ENABLE_MM | SCRIBE_PS_ENABLE_DATA);
+
 	if (err)
 		goto out;
 	if (ret < 0)
@@ -134,8 +137,9 @@ static int scribe_shutdown(struct socket *sock, int flags)
 	if (scribe_is_deterministic(sock) || !is_scribed(scribe))
 		return sock->real_ops->shutdown(sock, flags);
 
-	err = scribe_result(
-		ret, sock->real_ops->shutdown(sock, flags));
+	err = scribe_result_flags(
+		ret, sock->real_ops->shutdown(sock, flags),
+		SCRIBE_PS_ENABLE_MM | SCRIBE_PS_ENABLE_DATA);
 
 	return err ?: ret;
 }
@@ -149,12 +153,14 @@ static int scribe_setsockopt(struct socket *sock, int level,
 	scribe_allow_uaccess();
 	scribe_data_ignore();
 
-	err = scribe_result(
+	err = scribe_result_flags(
 		ret, sock->real_ops->setsockopt(sock, level, optname,
-						optval, optlen));
+						optval, optlen),
+		SCRIBE_PS_ENABLE_MM | SCRIBE_PS_ENABLE_DATA);
 
 	scribe_data_det();
 	scribe_forbid_uaccess();
+
 
 	if (err)
 		return err;
@@ -174,9 +180,10 @@ static int scribe_getsockopt(struct socket *sock, int level,
 	scribe_allow_uaccess();
 	scribe_data_non_det();
 
-	err = scribe_result(
+	err = scribe_result_flags(
 		ret, sock->real_ops->getsockopt(sock, level, optname,
-						optval, optlen));
+						optval, optlen),
+		SCRIBE_PS_ENABLE_MM | SCRIBE_PS_ENABLE_DATA);
 	scribe_forbid_uaccess();
 
 	if (err)
@@ -231,8 +238,9 @@ static int scribe_sendmsg(struct kiocb *iocb, struct socket *sock,
 		return 0;
 
 	scribe_allow_uaccess();
-	err = scribe_result_cond(
+	err = scribe_result_flags_cond(
 		ret, sock->real_ops->sendmsg(iocb, sock, m, total_len),
+		SCRIBE_PS_ENABLE_MM | SCRIBE_PS_ENABLE_DATA,
 		!scribe_is_in_read_write(scribe) || ret > 0);
 	if (err)
 		goto out;
@@ -278,8 +286,9 @@ static int scribe_recvmsg(struct kiocb *iocb, struct socket *sock,
 	scribe_data_non_det();
 	scribe_allow_uaccess();
 
-	err = scribe_result_cond(
+	err = scribe_result_flags_cond(
 		ret, sock->real_ops->recvmsg(iocb, sock, m, total_len, flags),
+		SCRIBE_PS_ENABLE_MM | SCRIBE_PS_ENABLE_DATA,
 		!scribe_is_in_read_write(scribe) || ret > 0);
 	if (err)
 		goto out;

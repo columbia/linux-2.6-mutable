@@ -21,9 +21,9 @@ union scribe_syscall_event_union {
 	struct scribe_event_syscall_extra *extra;
 };
 
-static void scribe_set_flags(struct scribe_ps *scribe,
-			     unsigned long flags,
-			     int duration)
+static void scribe_syscall_set_flags(struct scribe_ps *scribe,
+				     unsigned long flags,
+				     int duration)
 {
 	if (duration == SCRIBE_UNTIL_NEXT_SYSCALL) {
 		scribe->commit_sys_reset_flags = scribe->flags;
@@ -57,7 +57,7 @@ void scribe_handle_custom_actions(struct scribe_ps *scribe)
 
 	if (event->type == SCRIBE_EVENT_SET_FLAGS) {
 		event_sf = (struct scribe_event_set_flags *)event;
-		scribe_set_flags(scribe, event_sf->flags, event_sf->duration);
+		scribe_syscall_set_flags(scribe, event_sf->flags, event_sf->duration);
 	} else
 		return;
 
@@ -177,7 +177,7 @@ static int scribe_need_syscall_ret_replay(struct scribe_ps *scribe)
 		} else {
 			scribe_mutation(scribe, SCRIBE_EVENT_DIVERGE_SYSCALL,
 					.nr = scribe->nr_syscall);
-			scribe_set_flags(scribe, 0, SCRIBE_UNTIL_NEXT_SYSCALL);
+			scribe_syscall_set_flags(scribe, 0, SCRIBE_UNTIL_NEXT_SYSCALL);
 			scribe->orig_ret = 0;
 			return 0;
 		}
@@ -375,7 +375,7 @@ void scribe_exit_syscall(struct pt_regs *regs)
 		return;
 
 	if (scribe->commit_sys_reset_flags) {
-		scribe_set_flags(scribe, scribe->commit_sys_reset_flags,
+		scribe_syscall_set_flags(scribe, scribe->commit_sys_reset_flags,
 				 SCRIBE_PERMANANT);
 	} else {
 		scribe_commit_syscall(scribe, regs,
@@ -444,7 +444,7 @@ static int do_scribe_flags(pid_t pid,
 
 	old_flags = scribe->flags;
 	if (in_flags)
-		scribe_set_flags(scribe, *in_flags, duration);
+		scribe_syscall_set_flags(scribe, *in_flags, duration);
 
 	err = 0;
 out:

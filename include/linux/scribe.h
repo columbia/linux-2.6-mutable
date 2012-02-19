@@ -665,6 +665,16 @@ static inline int scribe_mm_disabled(struct scribe_ps *scribe)
 	return scribe->ctx->flags & SCRIBE_DISABLE_MM;
 }
 
+extern void scribe_mem_reload(struct scribe_ps *scribe);
+static inline void scribe_set_flags(struct scribe_ps *scribe,
+				    unsigned long flags)
+{
+
+	scribe->flags &= ~SCRIBE_PS_ENABLE_ALL;
+	scribe->flags |= flags & SCRIBE_PS_ENABLE_ALL;
+	scribe_mem_reload(scribe);
+}
+
 extern int init_scribe(struct task_struct *p, struct scribe_context *ctx,
 		       unsigned long flags);
 extern void exit_scribe(struct task_struct *p);
@@ -716,23 +726,30 @@ static inline int scribe_buffer(void *buffer, size_t size)
 	return scribe_buffer_at(buffer, size, NULL);
 }
 
-#define scribe_result_cond(dst, src, cond)				\
+#define __scribe_result_flags_cond(dst, src, scribe_flags, has_flags, cond) \
 ({									\
 	int __ret;							\
 	scribe_insert_point_t __ip;					\
 	struct scribe_ps *__scribe = current->scribe;			\
+	unsigned long __old_flags;					\
 									\
 	if (!is_scribed(__scribe) || !should_scribe_data(__scribe)) {	\
 		(dst) = (src);						\
 		__ret = 0;						\
 	} else if (is_recording(__scribe)) {				\
 		scribe_create_insert_point(&__ip, &__scribe->queue->stream); \
+		if (has_flags) {					\
+			__old_flags = __scribe->flags;			\
+			scribe_set_flags(__scribe, scribe_flags);	\
+		}							\
 		(dst) = (src);						\
-		if (cond)						\
+		if (cond) {						\
 			__ret = __scribe_buffer_record(__scribe,	\
 					&__ip, &(dst), sizeof(dst));	\
-		else							\
+		} else							\
 			__ret = 0;					\
+		if (has_flags)						\
+			scribe_set_flags(__scribe, __old_flags);	\
 		scribe_commit_insert_point(&__ip);			\
 	} else {							\
 		__ret = __scribe_buffer_replay(				\
@@ -741,7 +758,17 @@ static inline int scribe_buffer(void *buffer, size_t size)
 	__ret;								\
 })
 
-#define scribe_result(dst, src) scribe_result_cond(dst, src, 1)
+#define scribe_result_flags_cond(dst, src, scribe_flags, cond) \
+	__scribe_result_flags_cond(dst, src, scribe_flags, 1, cond)
+
+#define scribe_result_cond(dst, src, cond) \
+	__scribe_result_flags_cond(dst, src, 0, 0, cond)
+
+#define scribe_result_flags(dst, src, flags) \
+	scribe_result_flags_cond(dst, src, flags, 1)
+
+#define scribe_result(dst, src) \
+	scribe_result_cond(dst, src, 1)
 
 #define scribe_value(pval) scribe_buffer(pval, sizeof(*pval))
 #define scribe_value_at(pval, ip) scribe_buffer_at(pval, sizeof(*pval), ip)
