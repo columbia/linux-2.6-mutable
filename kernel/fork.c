@@ -485,6 +485,8 @@ static void mm_init_scribe(struct mm_struct *mm)
 	init_waitqueue_head(&mm->scribe_wait);
 
 	scribe_init_resource(&mm->scribe_mmap_res, SCRIBE_RES_TYPE_MMAP);
+
+	atomic_set(&mm->next_vma_id, 0);
 #endif
 }
 

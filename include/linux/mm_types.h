@@ -184,6 +184,9 @@ struct vm_area_struct {
 #ifdef CONFIG_NUMA
 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
 #endif
+#ifdef CONFIG_SCRIBE
+	unsigned int id;
+#endif
 };
 
 struct core_thread {
@@ -319,6 +322,8 @@ struct mm_struct {
 	wait_queue_head_t scribe_wait;
 
 	struct scribe_resource scribe_mmap_res;
+
+	atomic_t next_vma_id;
 #endif
 };
 
