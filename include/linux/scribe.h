@@ -523,6 +523,7 @@ struct scribe_ps {
 	int lock_next_file;
 	bool was_file_locking_interrupted;
 	bool do_dpath_scribing;
+	scribe_insert_point_t *res_ip;
 
 	struct scribe_ps_arch arch;
 

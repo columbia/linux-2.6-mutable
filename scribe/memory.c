@@ -1353,13 +1353,20 @@ retry:
 			}
 		}
 
+		if (scribe_resource_prepare())
+			return -ENOMEM;
+
+		scribe_lock_mmap_read(current->mm);
+
 		spin_lock(&page->owners_lock);
 		spin_lock(&scribe->mm->req_lock);
 
 		if (!is_owned_by(page, scribe) || list_empty(&os->req_node)) {
 			spin_unlock(&page->owners_lock);
+			scribe_unlock_discard(current->mm);
 			goto retry;
 		}
+
 
 		list_del_init(&os->req_node);
 
@@ -1367,6 +1374,7 @@ retry:
 			scribe_make_page_public_log(os, public_event,
 						    page->write_waiters ? 1 : 0);
 		spin_unlock(&page->owners_lock);
+		scribe_unlock_discard(current->mm);
 		public_event = NULL;
 		goto retry;
 	}

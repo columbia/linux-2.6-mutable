@@ -763,6 +763,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 {
 	pgoff_t pglen = (end - addr) >> PAGE_SHIFT;
 	struct vm_area_struct *area, *next;
+	struct scribe_ps *scribe = current->scribe;
 	int err;
 
 	/*
@@ -779,6 +780,13 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 	area = next;
 	if (next && next->vm_end == end)		/* cases 6, 7, 8 */
 		next = next->vm_next;
+
+	if (is_scribed(scribe)) {
+		printk("[%02d] NOT merging vma %d, %d, %d :D\n",
+		       scribe->queue->pid,
+		       prev ? prev->id : -1, area ? area->id : -1, next ? next->id : -1);
+		return NULL;
+	}
 
 	/*
 	 * Can it merge with the predecessor?
@@ -1991,7 +1999,18 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 
 	/* Success. */
 	if (!err) {
+		struct scribe_ps *scribe = current->scribe;
 		scribe_add_vma(new);
+		if (is_scribed(scribe)) {
+			printk("[%02d] spliting vma: %p---(%d)---%p %p---(%d)---%p\n",
+			       scribe->queue->pid,
+			       vma->vm_start,
+			       vma->id,
+			       vma->vm_end,
+			       new->vm_start,
+			       new->id,
+			       new->vm_end);
+		}
 		return 0;
 	}
 

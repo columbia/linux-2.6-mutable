@@ -197,6 +197,8 @@ extern void scribe_lock_ipc(struct ipc_namespace *ns);
 extern void scribe_lock_mmap_read(struct mm_struct *mm);
 extern void scribe_lock_mmap_write(struct mm_struct *mm);
 
+extern void scribe_lock_mmap_read(struct mm_struct *mm);
+
 extern void scribe_lock_ppid_ptr_read(struct task_struct *p);
 extern void scribe_lock_ppid_ptr_write(struct task_struct *p);
 
