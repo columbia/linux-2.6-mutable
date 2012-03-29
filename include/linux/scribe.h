@@ -535,6 +535,7 @@ struct scribe_ps {
 	int lock_next_file;
 	bool was_file_locking_interrupted;
 	bool do_dpath_scribing;
+	char *tmp_page;
 
 	struct scribe_ps_arch arch;
 

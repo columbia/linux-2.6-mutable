@@ -1061,6 +1061,11 @@ void exit_scribe(struct task_struct *p)
 	BUG_ON(is_scribed(scribe));
 
 	kfree(scribe->pre_alloc_queue);
+	if (scribe->tmp_page) {
+		free_page((unsigned long)scribe->tmp_page);
+		scribe->tmp_page = NULL;
+	}
+
 	scribe_resource_exit_user(&scribe->resources);
 	scribe_put_context(scribe->ctx);
 	exit_scribe_arch(scribe);

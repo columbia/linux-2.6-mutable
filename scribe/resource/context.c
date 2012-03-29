@@ -157,27 +157,30 @@ static size_t get_file_description(struct scribe_resource *res,
 {
 	struct scribe_ps *scribe = current->scribe;
 	struct file *file = res->object;
-	char *tmp, *pathname;
+	char *pathname;
 	ssize_t ret;
 
-	tmp = (char *)__get_free_page(GFP_TEMPORARY);
-	if (!tmp) {
-		return snprintf(buffer, size,
-				"memory allocation failed");
+	if (!scribe)
+		return snprintf(buffer, size, "scribe not enabled");
+
+	if (!scribe->tmp_page) {
+		scribe->tmp_page = (char *)__get_free_page(GFP_TEMPORARY);
+
+		if (!scribe->tmp_page) {
+			return snprintf(buffer, size,
+					"memory allocation failed");
+		}
 	}
 
-	if (scribe)
-		scribe->do_dpath_scribing = false;
-	pathname = d_path(&file->f_path, tmp, PAGE_SIZE);
-	if (scribe)
-		scribe->do_dpath_scribing = true;
+	scribe->do_dpath_scribing = false;
+	pathname = d_path(&file->f_path, scribe->tmp_page, PAGE_SIZE);
+	scribe->do_dpath_scribing = true;
+
 	if (IS_ERR(pathname)) {
 		ret = snprintf(buffer, size, "d_path failed with %ld",
 			       PTR_ERR(pathname));
 	} else
 		ret = snprintf(buffer, size, "%s", pathname);
-
-	free_page((unsigned long)tmp);
 
 	return ret;
 }
