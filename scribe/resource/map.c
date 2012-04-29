@@ -54,7 +54,7 @@ void scribe_free_res_map(struct scribe_res_map *map)
 	kfree(map);
 }
 
-static struct scribe_mapped_res *__find_mapped_res(
+struct scribe_mapped_res *__find_mapped_res(
 	struct scribe_res_map_ops *ops, struct hlist_head *head, void *key)
 {
 	struct scribe_mapped_res *mres;
@@ -117,7 +117,7 @@ struct scribe_mapped_res *scribe_get_mapped_res(struct scribe_res_map *map,
 	return mres;
 }
 
-static void free_rcu_mapped_res(struct rcu_head *rcu)
+void free_rcu_mapped_res(struct rcu_head *rcu)
 {
 	struct scribe_mapped_res *mres;
 	mres = container_of(rcu, struct scribe_mapped_res, mr_rcu);
@@ -140,7 +140,7 @@ void scribe_remove_mapped_res(struct scribe_mapped_res *mres)
  * The following is the map operation definitions we'll use.
  */
 
-static void *key_object(struct scribe_res_map *map, void *key)
+void *key_object(struct scribe_res_map *map, void *key)
 {
 	return key;
 }
@@ -152,7 +152,7 @@ static void *key_object(struct scribe_res_map *map, void *key)
  * totally different id.
  */
 
-static unsigned long hash_fn_pid(struct scribe_res_map *map, void *key)
+unsigned long hash_fn_pid(struct scribe_res_map *map, void *key)
 {
 	return hash_long((int)key, PID_RES_HASH_BITS);
 }
@@ -168,7 +168,7 @@ struct scribe_res_map_ops scribe_pid_map_ops = {
 
 
 /* Mapping of unix abstract path to res */
-static struct scribe_mapped_res *alloc_mres_sunaddr(
+struct scribe_mapped_res *alloc_mres_sunaddr(
 					void *key, struct scribe_res_user *user)
 {
 	struct scribe_mapped_res *mres = scribe_alloc_mres(key, user);
@@ -183,21 +183,21 @@ static struct scribe_mapped_res *alloc_mres_sunaddr(
 	return mres;
 }
 
-static void free_mres_sunaddr(struct scribe_mapped_res *mres)
+void free_mres_sunaddr(struct scribe_mapped_res *mres)
 {
 	struct sunaddr *sun = mres->mr_key;
 	kfree(sun);
 	scribe_free_mres(mres);
 }
 
-static unsigned long hash_fn_sunaddr(struct scribe_res_map *map, void *key)
+unsigned long hash_fn_sunaddr(struct scribe_res_map *map, void *key)
 {
 	struct sunaddr *sun = key;
 	return hash_long(csum_partial(&sun->addr, sun->len, 0),
 			 SUNADDR_RES_HASH_BITS);
 }
 
-static bool cmp_keys_sunaddr(void *key1, void *key2)
+bool cmp_keys_sunaddr(void *key1, void *key2)
 {
 	struct sunaddr *sun1 = key1, *sun2 = key2;
 

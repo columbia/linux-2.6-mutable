@@ -10,7 +10,7 @@
 #include "internal.h"
 #include <linux/hash.h>
 
-static struct kmem_cache *mres_cache;
+struct kmem_cache *mres_cache;
 
 void __init scribe_res_init_caches(void)
 {
@@ -100,7 +100,7 @@ void scribe_resource_init_user(struct scribe_res_user *user)
 	INIT_LIST_HEAD(&user->locked_regions);
 }
 
-static int resource_pre_alloc(struct scribe_res_user *user,
+int resource_pre_alloc(struct scribe_res_user *user,
 			      int doing_recording, int res_extra)
 {
 	struct scribe_lock_region *lock_region;
@@ -136,7 +136,7 @@ static int resource_pre_alloc(struct scribe_res_user *user,
 	return 0;
 }
 
-static int __resource_prepare(struct scribe_ps *scribe)
+int __resource_prepare(struct scribe_ps *scribe)
 {
 	might_sleep();
 

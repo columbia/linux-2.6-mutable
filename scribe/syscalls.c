@@ -78,7 +78,7 @@ void scribe_handle_custom_actions(struct scribe_ps *scribe)
 	}
 }
 
-static int scribe_regs(struct scribe_ps *scribe, struct pt_regs *regs)
+int scribe_regs(struct scribe_ps *scribe, struct pt_regs *regs)
 {
 	struct scribe_event_regs *event_regs;
 	struct pt_regs regs_tmp;
@@ -134,7 +134,7 @@ static inline int is_scribe_syscall(int nr)
 	       nr == __NR_prctl;
 }
 
-static int scribe_need_syscall_ret_record(struct scribe_ps *scribe)
+int scribe_need_syscall_ret_record(struct scribe_ps *scribe)
 {
 	/*
 	 * We'll postpone the insertion of the syscall event for the
@@ -149,12 +149,12 @@ static int scribe_need_syscall_ret_record(struct scribe_ps *scribe)
 	return 0;
 }
 
-static bool looks_like_address(unsigned long value)
+bool looks_like_address(unsigned long value)
 {
 	return !!(value & 0xff800000);
 }
 
-static int scribe_need_syscall_ret_replay(struct scribe_ps *scribe)
+int scribe_need_syscall_ret_replay(struct scribe_ps *scribe)
 {
 	union scribe_syscall_event_union event;
 	int syscall_extra = should_scribe_syscall_extra(scribe);
@@ -256,7 +256,7 @@ out:
 	return ret;
 }
 
-static int __scribe_need_syscall_ret(struct scribe_ps *scribe)
+int __scribe_need_syscall_ret(struct scribe_ps *scribe)
 {
 	scribe->need_syscall_ret = true;
 
@@ -280,7 +280,7 @@ int scribe_need_syscall_ret(struct scribe_ps *scribe)
 	return __scribe_need_syscall_ret(scribe);
 }
 
-static bool is_interruptible_syscall(int nr_syscall)
+bool is_interruptible_syscall(int nr_syscall)
 {
 	/*
 	 * FIXME Only do that for interruptible system calls (with
@@ -289,7 +289,7 @@ static bool is_interruptible_syscall(int nr_syscall)
 	return true;
 }
 
-static int get_nr_syscall(struct pt_regs *regs)
+int get_nr_syscall(struct pt_regs *regs)
 {
 	unsigned long call;
 	int nr;
@@ -316,7 +316,7 @@ static int get_nr_syscall(struct pt_regs *regs)
 
 /* Argument list sizes for sys_socketcall */
 #define AL(x) (x)
-static const unsigned char socket_nargs[20] = {
+const unsigned char socket_nargs[20] = {
 	AL(0),AL(3),AL(3),AL(3),AL(2),AL(3),
 	AL(3),AL(3),AL(4),AL(4),AL(4),AL(6),
 	AL(6),AL(2),AL(5),AL(5),AL(3),AL(3),
@@ -325,7 +325,7 @@ static const unsigned char socket_nargs[20] = {
 
 #undef AL
 
-static int get_num_args(int nr)
+int get_num_args(int nr)
 {
 	struct syscall_metadata *meta;
 
@@ -339,7 +339,7 @@ static int get_num_args(int nr)
 	return meta->nb_args;
 }
 
-static void cache_syscall_info(struct scribe_ps *scribe, struct pt_regs *regs)
+void cache_syscall_info(struct scribe_ps *scribe, struct pt_regs *regs)
 {
 	scribe->syscall.nr = get_nr_syscall(regs);
 	scribe->syscall.num_args = get_num_args(scribe->syscall.nr);
@@ -417,7 +417,7 @@ void scribe_enter_syscall(struct pt_regs *regs)
 	scribe->in_syscall = 1;
 }
 
-static void scribe_commit_syscall_record(struct scribe_ps *scribe,
+void scribe_commit_syscall_record(struct scribe_ps *scribe,
 					 struct pt_regs *regs, long ret_value)
 {
 	union scribe_syscall_event_union event;
@@ -455,7 +455,7 @@ err:
 	scribe_kill(scribe->ctx, -ENOMEM);
 }
 
-static void scribe_commit_syscall_replay(struct scribe_ps *scribe,
+void scribe_commit_syscall_replay(struct scribe_ps *scribe,
 					 struct pt_regs *regs, long ret_value)
 {
 	struct scribe_event_syscall_end *event_end;
@@ -555,7 +555,7 @@ static inline struct task_struct *find_process_by_pid(pid_t pid)
 	return pid ? find_task_by_vpid(pid) : current;
 }
 
-static int do_scribe_flags(pid_t pid,
+int do_scribe_flags(pid_t pid,
 			   unsigned long *in_flags, int duration,
 			   unsigned long __user *out_flags)
 {

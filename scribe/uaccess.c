@@ -58,7 +58,7 @@ struct data_desc {
 	bool do_zero;
 };
 
-static void post_init_data_desc(struct scribe_ps *scribe,
+void post_init_data_desc(struct scribe_ps *scribe,
 				struct data_desc *desc)
 {
 	/*
@@ -90,7 +90,7 @@ static void post_init_data_desc(struct scribe_ps *scribe,
 	}
 }
 
-static bool need_action(struct scribe_ps *scribe, struct data_desc *desc)
+bool need_action(struct scribe_ps *scribe, struct data_desc *desc)
 {
 	if (!desc->size)
 		return false;
@@ -107,7 +107,7 @@ static bool need_action(struct scribe_ps *scribe, struct data_desc *desc)
 	return desc->do_det || desc->do_non_det || desc->do_info;
 }
 
-static int get_data_event(struct scribe_ps *scribe, struct data_desc *desc)
+int get_data_event(struct scribe_ps *scribe, struct data_desc *desc)
 {
 	union scribe_event_data_union event;
 
@@ -224,7 +224,7 @@ EXPORT_SYMBOL(scribe_pre_uaccess);
  * This version of memcmp() returns the offset of the mismatch,
  * or -1 when the buffers are matching
  */
-static int __memcmp(const void *cs, const void *ct, size_t count)
+int __memcmp(const void *cs, const void *ct, size_t count)
 {
 	const unsigned char *su1, *su2;
 	size_t orig_count = count;
@@ -272,7 +272,7 @@ void scribe_ensure_data_correctness(struct scribe_ps *scribe,
 		diverge_on_data(scribe, data, count);
 }
 
-static void scribe_post_uaccess_record(struct scribe_ps *scribe,
+void scribe_post_uaccess_record(struct scribe_ps *scribe,
 				       struct data_desc *desc)
 {
 	void *event_data;
@@ -327,7 +327,7 @@ static inline int check_info(struct scribe_ps *scribe,
 	return 0;
 }
 
-static void scribe_post_uaccess_replay(struct scribe_ps *scribe,
+void scribe_post_uaccess_replay(struct scribe_ps *scribe,
 				       struct data_desc *desc)
 {
 	const void *event_data;
@@ -410,7 +410,7 @@ static void scribe_post_uaccess_replay(struct scribe_ps *scribe,
 	scribe->data_flags = old_data_flags;
 }
 
-static void __scribe_post_uaccess(struct scribe_ps *scribe,
+void __scribe_post_uaccess(struct scribe_ps *scribe,
 				  struct data_desc *desc)
 {
 	struct scribe_event *event;
@@ -463,7 +463,7 @@ void scribe_post_uaccess(const void *data, const void __user *user_ptr,
 }
 EXPORT_SYMBOL(scribe_post_uaccess);
 
-static void scribe_copy_to_user_recorded(void __user *to, long n,
+void scribe_copy_to_user_recorded(void __user *to, long n,
 					 union scribe_event_data_union *event)
 {
 	struct data_desc desc;

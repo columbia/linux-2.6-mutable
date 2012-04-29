@@ -133,7 +133,7 @@ static inline struct scribe_lock_arg *__lock_arg_inode(
 				scribe->ctx, flags);
 }
 
-static int lock_file(struct file *file, int flags)
+int lock_file(struct file *file, int flags)
 {
 	struct scribe_ps *scribe = current->scribe;
 	struct inode *inode;
@@ -190,7 +190,7 @@ int scribe_lock_file_write_interruptible(struct file *file)
 			       SCRIBE_WRITE | SCRIBE_INODE_WRITE);
 }
 
-static void lock_inode(struct inode *inode, int flags)
+void lock_inode(struct inode *inode, int flags)
 {
 	struct scribe_ps *scribe = current->scribe;
 	struct scribe_lock_arg arg;
@@ -370,7 +370,7 @@ bool scribe_was_file_locking_interrupted(void)
 	return scribe->was_file_locking_interrupted;
 }
 
-static void lock_files(struct files_struct *files, int flags)
+void lock_files(struct files_struct *files, int flags)
 {
 	struct scribe_ps *scribe = current->scribe;
 	struct scribe_lock_arg arg;
@@ -392,7 +392,7 @@ void scribe_lock_files_write(struct files_struct *files)
 	lock_files(files, SCRIBE_WRITE);
 }
 
-static void lock_pid(pid_t pid, int flags)
+void lock_pid(pid_t pid, int flags)
 {
 	struct scribe_ps *scribe = current->scribe;
 	struct scribe_lock_arg arg;
@@ -437,7 +437,7 @@ void scribe_lock_ipc(struct ipc_namespace *ns)
 			&arg, &ns->scribe_resource, SCRIBE_WRITE));
 }
 
-static void lock_mmap(struct mm_struct *mm, unsigned long flags)
+void lock_mmap(struct mm_struct *mm, unsigned long flags)
 {
 	struct scribe_ps *scribe = current->scribe;
 	struct scribe_lock_arg arg;
@@ -459,7 +459,7 @@ void scribe_lock_mmap_write(struct mm_struct *mm)
 	lock_mmap(mm, SCRIBE_WRITE);
 }
 
-static void lock_ppid_ptr(struct task_struct *p, unsigned long flags)
+void lock_ppid_ptr(struct task_struct *p, unsigned long flags)
 {
 	struct scribe_ps *scribe = current->scribe;
 	struct scribe_lock_arg arg;
@@ -481,7 +481,7 @@ void scribe_lock_ppid_ptr_write(struct task_struct *p)
 	lock_ppid_ptr(p, SCRIBE_WRITE);
 }
 
-static void lock_sunaddr(struct sockaddr_un *sunaddr, int addr_len,
+void lock_sunaddr(struct sockaddr_un *sunaddr, int addr_len,
 			 lock_cookie_t *lock_cookie, unsigned long flags)
 {
 	struct scribe_ps *scribe = current->scribe;

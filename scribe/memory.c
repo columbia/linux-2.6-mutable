@@ -136,7 +136,7 @@ struct scribe_mm {
 	int disable_sync_sleep;
 };
 
-static struct kmem_cache *page_cache;
+struct kmem_cache *page_cache;
 
 void __init scribe_mem_init_caches(void)
 {
@@ -174,7 +174,7 @@ pgd_t *scribe_get_pgd(struct mm_struct *next, struct task_struct *tsk)
     Owner list management
 ********************************************************/
 
-static struct scribe_ownership *__alloc_ownership_struct(
+struct scribe_ownership *__alloc_ownership_struct(
 						struct scribe_page *page)
 {
 	struct scribe_ownership *os;
@@ -198,7 +198,7 @@ static struct scribe_ownership *__alloc_ownership_struct(
 	return os;
 }
 
-static void __free_ownership_struct(struct scribe_ownership *os)
+void __free_ownership_struct(struct scribe_ownership *os)
 {
 	struct scribe_page *page = os->page;
 	unsigned int index;
@@ -210,7 +210,7 @@ static void __free_ownership_struct(struct scribe_ownership *os)
 		kfree(os);
 }
 
-static struct scribe_ownership *find_ownership(struct scribe_page *page,
+struct scribe_ownership *find_ownership(struct scribe_page *page,
 					       struct scribe_ps *owner)
 {
 	struct scribe_ownership *os;
@@ -229,7 +229,7 @@ static inline bool is_owned_by(struct scribe_page *page,
 	return (bool)find_ownership(page, owner);
 }
 
-static struct scribe_ownership *add_page_ownership(struct scribe_page *page,
+struct scribe_ownership *add_page_ownership(struct scribe_page *page,
 						   struct scribe_ps *owner,
 						   unsigned long virt_address)
 {
@@ -256,7 +256,7 @@ static struct scribe_ownership *add_page_ownership(struct scribe_page *page,
 	return os;
 }
 
-static void rm_page_ownership(struct scribe_ownership *os)
+void rm_page_ownership(struct scribe_ownership *os)
 {
 #ifdef CONFIG_DEBUG_KERNEL
 	struct scribe_page *page = os->page;
@@ -273,7 +273,7 @@ static void rm_page_ownership(struct scribe_ownership *os)
 *********************************************************/
 
 #define ALL_KEYS ((void *)-1)
-static void remove_pages_of(struct scribe_mm_context *mm_ctx, void *key_object);
+void remove_pages_of(struct scribe_mm_context *mm_ctx, void *key_object);
 
 void scribe_exit_mem_inode(struct inode *inode)
 {
@@ -285,7 +285,7 @@ void scribe_exit_mem_inode(struct inode *inode)
 	spin_unlock(&scribe_active_contexts_lock);
 }
 
-static int get_scribe_cnt(struct mm_struct *mm)
+int get_scribe_cnt(struct mm_struct *mm)
 {
 	/*
 	 * FIXME what's up with this lock ... ? It doesn't seem to be
@@ -304,7 +304,7 @@ static inline bool is_sharing_mm(struct mm_struct *mm)
 	return get_scribe_cnt(mm) > 1;
 }
 
-static int __rm_shadow_mm(struct scribe_mm *scribe_mm, struct mm_struct *mm)
+int __rm_shadow_mm(struct scribe_mm *scribe_mm, struct mm_struct *mm)
 {
 	int cnt;
 
@@ -317,7 +317,7 @@ static int __rm_shadow_mm(struct scribe_mm *scribe_mm, struct mm_struct *mm)
 	return cnt;
 }
 
-static void rm_shadow_mm(struct scribe_mm *scribe_mm, struct mm_struct *mm)
+void rm_shadow_mm(struct scribe_mm *scribe_mm, struct mm_struct *mm)
 {
 	struct scribe_mm_context *mm_ctx;
 	int cnt;
@@ -329,7 +329,7 @@ static void rm_shadow_mm(struct scribe_mm *scribe_mm, struct mm_struct *mm)
 	}
 }
 
-static void add_shadow_mm(struct scribe_mm *scribe_mm, struct mm_struct *mm)
+void add_shadow_mm(struct scribe_mm *scribe_mm, struct mm_struct *mm)
 {
 	down_write(&mm->mmap_sem);
 
@@ -346,7 +346,7 @@ static void add_shadow_mm(struct scribe_mm *scribe_mm, struct mm_struct *mm)
     scribe_page manipulation
 *********************************************************/
 
-static void init_page_hash_bucket(struct page_hash_bucket *hb)
+void init_page_hash_bucket(struct page_hash_bucket *hb)
 {
 	spin_lock_init(&hb->lock);
 	INIT_HLIST_HEAD(&hb->pages);
@@ -378,7 +378,7 @@ void scribe_free_mm_context(struct scribe_mm_context *mm_ctx)
 	kfree(mm_ctx);
 }
 
-static struct page_hash_bucket *get_page_hash_bucket(
+struct page_hash_bucket *get_page_hash_bucket(
 					struct scribe_mm_context *mm_ctx,
 					struct scribe_page_key *key)
 {
@@ -398,7 +398,7 @@ static inline int equal_page_keys(struct scribe_page_key *key1,
 	return key1->offset == key2->offset && key1->object == key2->object;
 }
 
-static struct scribe_page *__find_scribe_page(struct page_hash_bucket *hb,
+struct scribe_page *__find_scribe_page(struct page_hash_bucket *hb,
 					      struct scribe_page_key *key)
 {
 	struct scribe_page *page;
@@ -411,7 +411,7 @@ static struct scribe_page *__find_scribe_page(struct page_hash_bucket *hb,
 	return NULL;
 }
 
-static struct scribe_page *get_scribe_page(struct scribe_mm_context *mm_ctx,
+struct scribe_page *get_scribe_page(struct scribe_mm_context *mm_ctx,
 					   struct scribe_page_key *key)
 {
 	struct page_hash_bucket *hb = get_page_hash_bucket(mm_ctx, key);
@@ -461,11 +461,11 @@ static inline bool page_key_eq(struct scribe_page_key *key1,
 }
 
 #define DONT_CLEAR_PTE (struct vm_area_struct *)(-1)
-static void scribe_make_page_public(struct scribe_ownership *os,
+void scribe_make_page_public(struct scribe_ownership *os,
 				    int write_access,
 				    struct vm_area_struct *vma);
 
-static void __scribe_page_release_ownership(struct scribe_ps *scribe,
+void __scribe_page_release_ownership(struct scribe_ps *scribe,
 					    void *key_object)
 {
 	struct scribe_mm_context *mm_ctx = scribe->ctx->mm_ctx;
@@ -500,7 +500,7 @@ static void __scribe_page_release_ownership(struct scribe_ps *scribe,
 
 #define ALL_PAGES 0
 #define ONLY_ANONYMOUS_PAGES 1
-static void scribe_page_release_ownership(struct scribe_ps *scribe, int whence)
+void scribe_page_release_ownership(struct scribe_ps *scribe, int whence)
 {
 	switch (whence) {
 	case ALL_PAGES:
@@ -514,7 +514,7 @@ static void scribe_page_release_ownership(struct scribe_ps *scribe, int whence)
 	}
 }
 
-static void free_rcu_page(struct rcu_head *rcu)
+void free_rcu_page(struct rcu_head *rcu)
 {
 	struct scribe_page *page;
 	page = container_of(rcu, struct scribe_page, rcu);
@@ -525,7 +525,7 @@ static void free_rcu_page(struct rcu_head *rcu)
  * mm_struct goes away.
  * It basically remove tracking of a page (serial number would be reset).
  */
-static void remove_pages_of(struct scribe_mm_context *mm_ctx, void *key_object)
+void remove_pages_of(struct scribe_mm_context *mm_ctx, void *key_object)
 {
 	struct page_hash_bucket *hb;
 	struct scribe_page *page;
@@ -546,7 +546,7 @@ static void remove_pages_of(struct scribe_mm_context *mm_ctx, void *key_object)
 	}
 }
 
-static void get_page_key(struct vm_area_struct *vma, unsigned long address,
+void get_page_key(struct vm_area_struct *vma, unsigned long address,
 			 struct scribe_page_key *key)
 {
 	if (vma->vm_flags & VM_SHARED) {
@@ -559,7 +559,7 @@ static void get_page_key(struct vm_area_struct *vma, unsigned long address,
 	}
 }
 
-static bool inline page_access_ok(struct scribe_ps *scribe,
+bool inline page_access_ok(struct scribe_ps *scribe,
 				  struct scribe_page *page, int write_access)
 {
 	if (!is_owned_by(page, scribe))
@@ -574,7 +574,7 @@ static bool inline page_access_ok(struct scribe_ps *scribe,
 	return false;
 }
 
-static int page_down_trylock(struct scribe_page *page, int write_access)
+int page_down_trylock(struct scribe_page *page, int write_access)
 {
 	int ret = 0;
 
@@ -593,7 +593,7 @@ out:
 }
 
 
-static void page_down(struct scribe_page *page, int write_access)
+void page_down(struct scribe_page *page, int write_access)
 {
 	DEFINE_WAIT(__wait);
 
@@ -611,14 +611,14 @@ static void page_down(struct scribe_page *page, int write_access)
 	finish_wait(&page->ownership_wait, &__wait);
 }
 
-static void page_up(struct scribe_page *page, int write_access)
+void page_up(struct scribe_page *page, int write_access)
 {
 	assert_spin_locked(&page->owners_lock);
 	page->ownership_token--;
 	wake_up(&page->ownership_wait);
 }
 
-static void page_downgrade_write(struct scribe_page *page)
+void page_downgrade_write(struct scribe_page *page)
 {
 	assert_spin_locked(&page->owners_lock);
 	BUG_ON(!page->write_access);
@@ -646,7 +646,7 @@ static inline void dec_waiters(struct scribe_page *page, int write_access)
     private page table management
 *********************************************************/
 
-static void update_private_pte_locked(struct scribe_mm *scribe_mm,
+void update_private_pte_locked(struct scribe_mm *scribe_mm,
 		struct mm_struct *mm, struct vm_area_struct *vma,
 		pte_t *real_pte, unsigned long address, int write_access)
 {
@@ -702,7 +702,7 @@ void scribe_clear_shadow_pte_locked(struct mm_struct *mm,
 	spin_unlock(&mm->scribe_lock);
 }
 
-static void update_private_pte(struct scribe_ps *scribe,
+void update_private_pte(struct scribe_ps *scribe,
 		struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long address, int write_access)
 {
@@ -732,7 +732,7 @@ static void update_private_pte(struct scribe_ps *scribe,
     memory context initialization/destruction
 *********************************************************/
 
-static struct scribe_mm *get_new_scribe_mm(struct scribe_ps *scribe)
+struct scribe_mm *get_new_scribe_mm(struct scribe_ps *scribe)
 {
 	struct scribe_mm *scribe_mm;
 
@@ -756,7 +756,7 @@ static struct scribe_mm *get_new_scribe_mm(struct scribe_ps *scribe)
 	return scribe_mm;
 }
 
-static void free_shadow_pgd_range(struct mm_struct *mm, pgd_t *pgd,
+void free_shadow_pgd_range(struct mm_struct *mm, pgd_t *pgd,
 				  unsigned long addr, unsigned long end)
 {
 	struct mmu_gather *tlb;
@@ -790,7 +790,7 @@ void scribe_free_all_shadow_pgd_range(struct mmu_gather *tlb,
 }
 
 
-static void free_scribe_mm(struct scribe_mm *scribe_mm, struct mm_struct *mm)
+void free_scribe_mm(struct scribe_mm *scribe_mm, struct mm_struct *mm)
 {
 	free_shadow_pgd_range(mm, scribe_mm->own_pgd,
 			      FIRST_USER_ADDRESS, TASK_SIZE);
@@ -800,7 +800,7 @@ static void free_scribe_mm(struct scribe_mm *scribe_mm, struct mm_struct *mm)
 
 static inline int is_vma_scribed(struct scribe_ps *scribe,
 				 struct vm_area_struct *vma);
-static void maybe_go_multithreaded(struct mm_struct *mm)
+void maybe_go_multithreaded(struct mm_struct *mm)
 {
 	struct scribe_ps *scribe = current->scribe;
 
@@ -935,7 +935,7 @@ static inline int increment_serial(struct scribe_page *page)
 	return ret;
 }
 
-static void scribe_make_page_public(struct scribe_ownership *os,
+void scribe_make_page_public(struct scribe_ownership *os,
 				    int write_access,
 				    struct vm_area_struct *vma)
 
@@ -984,7 +984,7 @@ static void scribe_make_page_public(struct scribe_ownership *os,
 	update_private_pte(scribe, mm, vma, virt_address, write_access);
 }
 
-static void scribe_make_page_public_log(struct scribe_ownership *os,
+void scribe_make_page_public_log(struct scribe_ownership *os,
 					struct scribe_event *public_event,
 					int write_access)
 {
@@ -1009,7 +1009,7 @@ static void scribe_make_page_public_log(struct scribe_ownership *os,
 	scribe_make_page_public(os, write_access, NULL);
 }
 
-static int scribe_make_page_owned_log(struct scribe_ps *scribe,
+int scribe_make_page_owned_log(struct scribe_ps *scribe,
 		struct scribe_page *page, unsigned long address,
 		int write_access)
 {
@@ -1045,7 +1045,7 @@ static int scribe_make_page_owned_log(struct scribe_ps *scribe,
 	return ret;
 }
 
-static int scribe_make_page_owned_replay(struct scribe_ps *scribe,
+int scribe_make_page_owned_replay(struct scribe_ps *scribe,
 		struct scribe_page *page, unsigned long address,
 		int write_access)
 {
@@ -1062,7 +1062,7 @@ static int scribe_make_page_owned_replay(struct scribe_ps *scribe,
 }
 
 #ifdef CONFIG_SCRIBE_MEM_PG_EXPIRE
-static int has_ownership_expired(struct scribe_ownership *os, struct timeval *now)
+int has_ownership_expired(struct scribe_ownership *os, struct timeval *now)
 {
 	struct timeval *start = &os->timestamp;
 
@@ -1084,7 +1084,7 @@ static inline int has_ownership_expired(struct scribe_ownership *os, struct time
 }
 #endif /* CONFIG_SCRIBE_MEM_PG_EXPIRE */
 
-static int serve_shared_req(struct scribe_ps *scribe, int mode)
+int serve_shared_req(struct scribe_ps *scribe, int mode)
 {
 	struct scribe_event *public_event = NULL;
 	struct scribe_ownership *os;
@@ -1136,7 +1136,7 @@ retry:
  * If we enter a weak_owner zone, we have to handle all shared requests
  * and turn the flag weak_owner on atomically
  */
-static int scribe_mem_sync_point_record(struct scribe_ps *scribe, int mode)
+int scribe_mem_sync_point_record(struct scribe_ps *scribe, int mode)
 {
 	int ret = 0;
 
@@ -1170,11 +1170,11 @@ static int scribe_mem_sync_point_record(struct scribe_ps *scribe, int mode)
 	return ret;
 }
 
-static int scribe_handle_public_event(struct scribe_ps *scribe,
+int scribe_handle_public_event(struct scribe_ps *scribe,
 				      struct scribe_event *event);
 
 /* we have to handle all public event pending on the queue */
-static int scribe_mem_sync_point_replay(struct scribe_ps *scribe, int mode)
+int scribe_mem_sync_point_replay(struct scribe_ps *scribe, int mode)
 {
 	int ret = 0;
 	struct scribe_event *event;
@@ -1207,7 +1207,7 @@ static int scribe_mem_sync_point_replay(struct scribe_ps *scribe, int mode)
 }
 
 #ifdef CONFIG_SCRIBE_MEM_DBG
-static const char* get_sync_mode_str(int mode)
+const char* get_sync_mode_str(int mode)
 {
 	switch(mode) {
 	case 0: return "none";
@@ -1219,7 +1219,7 @@ static const char* get_sync_mode_str(int mode)
 	return "unknown :(";
 }
 
-static void assert_sync_mode(struct scribe_ps *scribe, int expected_mode)
+void assert_sync_mode(struct scribe_ps *scribe, int expected_mode)
 {
 	int mode = scribe->mm->weak_owner;
 	WARN(mode != expected_mode,
@@ -1227,7 +1227,7 @@ static void assert_sync_mode(struct scribe_ps *scribe, int expected_mode)
 	     get_sync_mode_str(mode), get_sync_mode_str(expected_mode));
 }
 #else
-static void assert_sync_mode(struct scribe_ps *scribe, int expected_mode) {}
+void assert_sync_mode(struct scribe_ps *scribe, int expected_mode) {}
 #endif
 
 void scribe_mem_sync_point(struct scribe_ps *scribe, int mode)
@@ -1318,7 +1318,7 @@ void scribe_mem_schedule_out(struct scribe_ps *scribe)
 		scribe_mem_sync_point(scribe, MEM_SYNC_OUT | MEM_SYNC_SLEEP);
 }
 
-static int scribe_handle_public_event(struct scribe_ps *scribe,
+int scribe_handle_public_event(struct scribe_ps *scribe,
 				      struct scribe_event *event)
 {
 	struct mm_struct *mm = scribe->p->mm;
@@ -1398,7 +1398,7 @@ static inline int is_vma_scribed(struct scribe_ps *scribe, struct vm_area_struct
 }
 
 /* Returns 1 if we went alone, 0 if not, -ENOMEM if the allocation failed */
-static int check_for_aloneness(struct scribe_ps *scribe)
+int check_for_aloneness(struct scribe_ps *scribe)
 {
 	if (is_sharing_mm(scribe->p->mm))
 		return 0;
@@ -1441,7 +1441,7 @@ static inline int is_ownership_stealable(struct scribe_ps *scribe,
 	return 0;
 }
 
-static void try_make_public(struct scribe_ps *scribe, struct scribe_page *page,
+void try_make_public(struct scribe_ps *scribe, struct scribe_page *page,
 			    int write_access)
 {
 #define MAX_EVENT_ALLOC_NUM 32
@@ -1504,7 +1504,7 @@ out:
 	}
 }
 
-static void read_write_accounting(struct scribe_page *page, struct scribe_ps *scribe,
+void read_write_accounting(struct scribe_page *page, struct scribe_ps *scribe,
 				  int *write_access)
 {
 	struct scribe_ownership *os;
@@ -1531,7 +1531,7 @@ static void read_write_accounting(struct scribe_page *page, struct scribe_ps *sc
 	}
 }
 
-static int scribe_page_access_record(struct scribe_ps *scribe,
+int scribe_page_access_record(struct scribe_ps *scribe,
 		struct mm_struct *mm, struct vm_area_struct *vma,
 		struct scribe_page *page, unsigned long address,
 		int write_access)
@@ -1611,7 +1611,7 @@ static int scribe_page_access_record(struct scribe_ps *scribe,
 	return scribe_make_page_owned_log(scribe, page, address, write_access);
 }
 
-static int serial_match(struct scribe_ps *scribe,
+int serial_match(struct scribe_ps *scribe,
 			struct scribe_page *page, int serial)
 {
 	if (atomic_read(&page->serial) >= serial)
@@ -1623,7 +1623,7 @@ static int serial_match(struct scribe_ps *scribe,
 	return 0;
 }
 
-static int get_owned_event_info(struct scribe_ps *scribe,
+int get_owned_event_info(struct scribe_ps *scribe,
 				struct scribe_event *event,
 				int *rw_flag, unsigned long *page_addr,
 				unsigned int *serial)
@@ -1666,7 +1666,7 @@ static int get_owned_event_info(struct scribe_ps *scribe,
 	return -ENODATA;
 }
 
-static int scribe_page_access_replay(struct scribe_ps *scribe,
+int scribe_page_access_replay(struct scribe_ps *scribe,
 		struct mm_struct *mm, struct vm_area_struct *vma,
 		struct scribe_page *page, unsigned long address,
 		int write_access)
@@ -1771,7 +1771,7 @@ static inline int scribe_page_access(struct scribe_ps *scribe,
 	return ret;
 }
 
-static int own_pte_alloc_map(struct scribe_ps *scribe, struct mm_struct *mm,
+int own_pte_alloc_map(struct scribe_ps *scribe, struct mm_struct *mm,
 			     pte_t **pown_pte, pmd_t **pown_pmd,
 			     unsigned long address)
 {
@@ -1866,7 +1866,7 @@ set_pte:
 
 /******************************************************************************/
 
-static struct scribe_ps *get_scribe_from_mm(struct mm_struct *mm)
+struct scribe_ps *get_scribe_from_mm(struct mm_struct *mm)
 {
 	struct task_struct *p = mm->owner;
 

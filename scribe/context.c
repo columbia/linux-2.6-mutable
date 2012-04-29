@@ -74,7 +74,7 @@ err_ctx:
 	return NULL;
 }
 
-static void wait_for_ctx_empty(struct scribe_context *ctx)
+void wait_for_ctx_empty(struct scribe_context *ctx)
 {
 	struct scribe_queue *queue, *tmp;
 
@@ -89,7 +89,7 @@ static void wait_for_ctx_empty(struct scribe_context *ctx)
 	wait_event(ctx->queues_wait, list_empty(&ctx->queues));
 }
 
-static void clear_nsproxies(struct scribe_context *ctx);
+void clear_nsproxies(struct scribe_context *ctx);
 void scribe_free_context(struct scribe_context *ctx)
 {
 	scribe_kill(ctx, 0);
@@ -105,7 +105,7 @@ void scribe_free_context(struct scribe_context *ctx)
 	scribe_put_context(ctx);
 }
 
-static void setup_init_nsproxy(struct scribe_context *ctx,
+void setup_init_nsproxy(struct scribe_context *ctx,
 			       struct scribe_ps *scribe)
 {
 	assert_spin_locked(&ctx->tasks_lock);
@@ -116,7 +116,7 @@ static void setup_init_nsproxy(struct scribe_context *ctx,
 	}
 }
 
-static void setup_monitor_nsproxy(struct scribe_context *ctx)
+void setup_monitor_nsproxy(struct scribe_context *ctx)
 {
 	assert_spin_locked(&ctx->tasks_lock);
 
@@ -126,7 +126,7 @@ static void setup_monitor_nsproxy(struct scribe_context *ctx)
 	}
 }
 
-static void clear_nsproxies(struct scribe_context *ctx)
+void clear_nsproxies(struct scribe_context *ctx)
 {
 	if (ctx->init_nsproxy) {
 		put_nsproxy(ctx->init_nsproxy);
@@ -139,7 +139,7 @@ static void clear_nsproxies(struct scribe_context *ctx)
 	}
 }
 
-static int context_start(struct scribe_context *ctx, unsigned long flags,
+int context_start(struct scribe_context *ctx, unsigned long flags,
 			 struct scribe_event_context_idle *idle_event,
 			 struct scribe_event_diverge *diverge_event,
 			 struct scribe_backtrace *backtrace)
@@ -192,7 +192,7 @@ static int context_start(struct scribe_context *ctx, unsigned long flags,
  * - a diverge event: a specific diverge error happened.
  *
  */
-static void context_idle(struct scribe_context *ctx,
+void context_idle(struct scribe_context *ctx,
 			 struct scribe_event *reason)
 {
 	struct scribe_backtrace *backtrace;
@@ -245,7 +245,7 @@ static void context_idle(struct scribe_context *ctx,
 	wake_up(&ctx->tasks_wait);
 }
 
-static int event_diverge_max_size_type(void)
+int event_diverge_max_size_type(void)
 {
 	struct scribe_event *event;
 	size_t max_size = 0;
@@ -389,7 +389,7 @@ int scribe_stop(struct scribe_context *ctx)
 	return ret;
 }
 
-static bool __scribe_is_deadlocked(struct scribe_context *ctx)
+bool __scribe_is_deadlocked(struct scribe_context *ctx)
 {
 	struct scribe_ps *scribe;
 	bool has_runners = false;
@@ -482,7 +482,7 @@ static inline void tasks_accounting(struct scribe_context *ctx, int delta)
 		ctx->max_num_tasks = ctx->num_tasks;
 }
 
-static void notify_attach(struct scribe_context *ctx, struct scribe_ps *scribe)
+void notify_attach(struct scribe_context *ctx, struct scribe_ps *scribe)
 {
 	pid_t real_pid, scribe_pid;
 
@@ -679,7 +679,7 @@ void scribe_detach(struct scribe_ps *scribe)
 	__scribe_detach(scribe);
 }
 
-static bool should_detach(struct scribe_ps *scribe)
+bool should_detach(struct scribe_ps *scribe)
 {
 	if (scribe->ctx->flags & SCRIBE_STOP)
 		return true;

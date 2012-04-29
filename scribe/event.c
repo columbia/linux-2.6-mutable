@@ -10,7 +10,7 @@
 #include <linux/scribe.h>
 #include <linux/sched.h>
 
-static void init_substream(struct scribe_stream *stream,
+void init_substream(struct scribe_stream *stream,
 			   struct scribe_substream *substream)
 {
 	substream->stream = stream;
@@ -59,7 +59,7 @@ void scribe_exit_queue(struct scribe_queue *queue)
 		scribe_free_event(queue->fence_events[i]);
 }
 
-static struct scribe_queue *find_queue(struct scribe_context *ctx, pid_t pid)
+struct scribe_queue *find_queue(struct scribe_context *ctx, pid_t pid)
 {
 	struct scribe_queue *queue;
 
@@ -95,8 +95,8 @@ void scribe_start_mutations(struct scribe_ps *scribe)
 		scribe_kill(scribe->ctx, ret);
 }
 
-static struct scribe_substream *get_substream(scribe_insert_point_t *ip);
-static void commit_pending_insert_points(struct scribe_stream *stream);
+struct scribe_substream *get_substream(scribe_insert_point_t *ip);
+void commit_pending_insert_points(struct scribe_stream *stream);
 void scribe_stop_mutations(struct scribe_ps *scribe)
 {
 	int ret;
@@ -228,12 +228,12 @@ void scribe_free_all_events(struct scribe_stream *stream)
 /*
  * This is where lies the difference between an insert point and a substream.
  */
-static struct scribe_substream *get_substream(scribe_insert_point_t *ip)
+struct scribe_substream *get_substream(scribe_insert_point_t *ip)
 {
 	return list_entry(ip->node.next, __typeof__(*ip), node);
 }
 
-static void set_region(struct scribe_stream *stream,
+void set_region(struct scribe_stream *stream,
 		       scribe_insert_point_t *ip, int region)
 {
 	struct scribe_substream *substream;
@@ -248,7 +248,7 @@ static void set_region(struct scribe_stream *stream,
 	spin_unlock_irqrestore(&stream->lock, flags);
 }
 
-static void clear_region(struct scribe_stream *stream,
+void clear_region(struct scribe_stream *stream,
 			 scribe_insert_point_t *ip, int region)
 {
 	struct scribe_substream *substream;
@@ -263,13 +263,13 @@ static void clear_region(struct scribe_stream *stream,
 	spin_unlock_irqrestore(&stream->lock, flags);
 }
 
-static void __clear_regions_on_commit(scribe_insert_point_t *ip,
+void __clear_regions_on_commit(scribe_insert_point_t *ip,
 				      struct scribe_substream *substream)
 {
 	substream->region_set &= ~ip->clear_region_on_commit_set;
 }
 
-static void __insert_fences(struct scribe_stream *stream,
+void __insert_fences(struct scribe_stream *stream,
 			    struct scribe_substream *substream)
 {
 	struct scribe_queue *queue;
@@ -299,7 +299,7 @@ static void __insert_fences(struct scribe_stream *stream,
 	}
 }
 
-static void init_insert_point(scribe_insert_point_t *ip,
+void init_insert_point(scribe_insert_point_t *ip,
 			      struct scribe_stream *stream,
 			      struct scribe_substream *where)
 {
@@ -358,7 +358,7 @@ void scribe_commit_insert_point(scribe_insert_point_t *ip)
 	spin_unlock_irqrestore(&stream->lock, flags);
 }
 
-static void commit_pending_insert_points(struct scribe_stream *stream)
+void commit_pending_insert_points(struct scribe_stream *stream)
 {
 	scribe_insert_point_t *ip, *tmp;
 
@@ -405,7 +405,7 @@ void scribe_queue_events_stream(struct scribe_stream *stream,
 	scribe_queue_events_at(&stream->master, events);
 }
 
-static struct scribe_event *__scribe_peek_event(struct scribe_stream *stream,
+struct scribe_event *__scribe_peek_event(struct scribe_stream *stream,
 						int wait, int remove,
 						struct scribe_event *pos)
 {
@@ -556,7 +556,7 @@ void *__scribe_alloc_event(int type, gfp_t flags)
 	return __scribe_alloc_event_const(type, flags);
 }
 
-static int realloc_fence_event(struct scribe_queue *queue, int region,
+int realloc_fence_event(struct scribe_queue *queue, int region,
 			       unsigned int serial)
 {
 	struct scribe_event_fence **pfence_event;
@@ -571,7 +571,7 @@ static int realloc_fence_event(struct scribe_queue *queue, int region,
 	return 0;
 }
 
-static int scribe_enter_fenced_region_always(struct scribe_ps *scribe,
+int scribe_enter_fenced_region_always(struct scribe_ps *scribe,
 					     int region, unsigned int serial)
 {
 	struct scribe_event_fence *event;

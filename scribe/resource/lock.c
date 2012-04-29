@@ -39,7 +39,7 @@
  *   write access during replay.
  */
 
-static bool is_locking_necessary(struct scribe_ps *scribe,
+bool is_locking_necessary(struct scribe_ps *scribe,
 				 struct scribe_resource *res)
 {
 	if (should_scribe_res_always(scribe))
@@ -69,7 +69,7 @@ static bool is_locking_necessary(struct scribe_ps *scribe,
 	return false;
 }
 
-static int __do_lock_record(struct scribe_ps *scribe,
+int __do_lock_record(struct scribe_ps *scribe,
 			    struct scribe_resource *res,
 			    int do_write, int do_intr, int nested)
 {
@@ -99,7 +99,7 @@ static int __do_lock_record(struct scribe_ps *scribe,
 	return ret;
 }
 
-static void __do_lock_read_serial(struct scribe_resource *res)
+void __do_lock_read_serial(struct scribe_resource *res)
 {
 	/*
 	 * This works because when @first_read_serial is equal to -1,
@@ -110,7 +110,7 @@ static void __do_lock_read_serial(struct scribe_resource *res)
 	cmpxchg(&res->first_read_serial, -1, atomic_read(&res->serial));
 }
 
-static void priority_lock(struct scribe_resource *res, int priority)
+void priority_lock(struct scribe_resource *res, int priority)
 {
 	if (priority) {
 		BUG_ON(use_spinlock(res));
@@ -122,7 +122,7 @@ static void priority_lock(struct scribe_resource *res, int priority)
 	}
 }
 
-static void priority_unlock(struct scribe_resource *res, int priority)
+void priority_unlock(struct scribe_resource *res, int priority)
 {
 	if (priority) {
 		atomic_dec(&res->priority_users);
@@ -130,7 +130,7 @@ static void priority_unlock(struct scribe_resource *res, int priority)
 	}
 }
 
-static void untrack_user(struct scribe_lock_region *lock_region)
+void untrack_user(struct scribe_lock_region *lock_region)
 {
 	struct scribe_resource *res = lock_region->res;
 
@@ -142,9 +142,9 @@ static void untrack_user(struct scribe_lock_region *lock_region)
 	spin_unlock(&res->lock_regions_lock);
 }
 
-static void do_unlock_discard(struct scribe_ps *scribe,
+void do_unlock_discard(struct scribe_ps *scribe,
 			      struct scribe_lock_region *lock_region);
-static int track_user(struct scribe_ps *scribe,
+int track_user(struct scribe_ps *scribe,
 		      struct scribe_lock_region *lock_region)
 {
 	struct scribe_resource *res = lock_region->res;
@@ -168,7 +168,7 @@ static int track_user(struct scribe_ps *scribe,
 	return 0;
 }
 
-static void do_interrupt_users(struct scribe_resource *res)
+void do_interrupt_users(struct scribe_resource *res)
 {
 	struct scribe_lock_region *lock_region;
 	struct task_struct *p;
@@ -186,7 +186,7 @@ static void do_interrupt_users(struct scribe_resource *res)
 	spin_unlock(&res->lock_regions_lock);
 }
 
-static int do_lock_record(struct scribe_ps *scribe,
+int do_lock_record(struct scribe_ps *scribe,
 			  struct scribe_lock_region *lock_region,
 			  struct scribe_resource *res)
 {
@@ -243,7 +243,7 @@ static int do_lock_record(struct scribe_ps *scribe,
 	return 0;
 }
 
-static int serial_match(struct scribe_ps *scribe,
+int res_serial_match(struct scribe_ps *scribe,
 			struct scribe_resource *res, int serial)
 {
 	if (serial <= atomic_read(&res->serial))
@@ -257,7 +257,7 @@ static int serial_match(struct scribe_ps *scribe,
 	return 0;
 }
 
-static int __do_lock_replay(struct scribe_ps *scribe,
+int __do_lock_replay(struct scribe_ps *scribe,
 			    struct scribe_lock_region *lock_region,
 			    struct scribe_resource *res)
 {
@@ -308,12 +308,12 @@ static int __do_lock_replay(struct scribe_ps *scribe,
 	/* That's for avoiding a thundering herd */
 	scribe->waiting_for_serial = serial;
 	wmb();
-	wait_event(res->wait, serial_match(scribe, res, serial));
+	wait_event(res->wait, res_serial_match(scribe, res, serial));
 
 	return 0;
 }
 
-static int do_lock_replay(struct scribe_ps *scribe,
+int do_lock_replay(struct scribe_ps *scribe,
 			  struct scribe_lock_region *lock_region,
 			  struct scribe_resource *res)
 {
@@ -325,7 +325,7 @@ static int do_lock_replay(struct scribe_ps *scribe,
 	return 0;
 }
 
-static int do_lock(struct scribe_ps *scribe,
+int do_lock(struct scribe_ps *scribe,
 		   struct scribe_lock_region *lock_region)
 {
 	int ret = 0;
@@ -352,7 +352,7 @@ no_lock:
 	return ret;
 }
 
-static void do_lock_downgrade_record(struct scribe_ps *scribe,
+void do_lock_downgrade_record(struct scribe_ps *scribe,
 				     struct scribe_lock_region *lock_region,
 				     struct scribe_resource *res)
 {
@@ -364,7 +364,7 @@ static void do_lock_downgrade_record(struct scribe_ps *scribe,
 	__do_lock_read_serial(res);
 }
 
-static void do_lock_downgrade(struct scribe_ps *scribe,
+void do_lock_downgrade(struct scribe_ps *scribe,
 			      struct scribe_lock_region *lock_region)
 {
 	struct scribe_resource *res = lock_region->res;
@@ -379,7 +379,7 @@ static void do_lock_downgrade(struct scribe_ps *scribe,
 	/* no-op for replay */
 }
 
-static void __do_unlock_record(struct scribe_resource *res, int do_write)
+void __do_unlock_record(struct scribe_resource *res, int do_write)
 {
 	if (use_spinlock(res))
 		spin_unlock(&res->lock.spinlock);
@@ -394,7 +394,7 @@ static void __do_unlock_record(struct scribe_resource *res, int do_write)
 	}
 }
 
-static void do_unlock_record(struct scribe_ps *scribe,
+void do_unlock_record(struct scribe_ps *scribe,
 			     struct scribe_lock_region *lock_region,
 			     struct scribe_resource *res)
 {
@@ -449,7 +449,7 @@ static void do_unlock_record(struct scribe_ps *scribe,
 	}
 }
 
-static void __do_unlock_replay(struct scribe_resource *res)
+void __do_unlock_replay(struct scribe_resource *res)
 {
 	unsigned long serial = atomic_read(&res->serial);
 	wait_queue_head_t *q = &res->wait;
@@ -464,7 +464,7 @@ static void __do_unlock_replay(struct scribe_resource *res)
 	spin_unlock(&q->lock);
 }
 
-static void do_unlock_replay(struct scribe_ps *scribe,
+void do_unlock_replay(struct scribe_ps *scribe,
 			     struct scribe_lock_region *lock_region,
 			     struct scribe_resource *res)
 {
@@ -484,7 +484,7 @@ static void do_unlock_replay(struct scribe_ps *scribe,
 		scribe_free_event(event);
 }
 
-static void do_unlock(struct scribe_ps *scribe,
+void do_unlock(struct scribe_ps *scribe,
 		      struct scribe_lock_region *lock_region)
 {
 	struct scribe_resource *res = lock_region->res;
@@ -500,7 +500,7 @@ static void do_unlock(struct scribe_ps *scribe,
 		do_unlock_replay(scribe, lock_region, res);
 }
 
-static void do_unlock_discard(struct scribe_ps *scribe,
+void do_unlock_discard(struct scribe_ps *scribe,
 			      struct scribe_lock_region *lock_region)
 {
 	struct scribe_resource *res = lock_region->res;

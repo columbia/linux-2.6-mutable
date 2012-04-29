@@ -15,27 +15,27 @@
 #include <net/sock.h>
 #include <linux/syscalls.h>
 
-static bool scribe_is_deterministic(struct socket *sock);
+bool scribe_is_deterministic(struct socket *sock);
 
 /*
  * We cannot use scribe_need_syscall_ret() because one syscall may call
  * many of these functions.
  */
 
-static int scribe_release(struct socket *sock)
+int scribe_release(struct socket *sock)
 {
 	BUG_ON(!sock);
 	BUG_ON(!sock->real_ops);
 	return sock->real_ops->release(sock);
 }
 
-static int scribe_bind(struct socket *sock, struct sockaddr *myaddr,
+int scribe_bind(struct socket *sock, struct sockaddr *myaddr,
 		       int sockaddr_len)
 {
 	return sock->real_ops->bind(sock, myaddr, sockaddr_len);
 }
 
-static int scribe_connect(struct socket *sock, struct sockaddr *vaddr,
+int scribe_connect(struct socket *sock, struct sockaddr *vaddr,
 			  int sockaddr_len, int flags)
 {
 	int ret, err;
@@ -55,18 +55,18 @@ static int scribe_connect(struct socket *sock, struct sockaddr *vaddr,
 	return err ?: ret;
 }
 
-static int scribe_socketpair(struct socket *sock1, struct socket *sock2)
+int scribe_socketpair(struct socket *sock1, struct socket *sock2)
 {
 	return sock1->real_ops->socketpair(sock1, sock2);
 }
 
-static int scribe_accept(struct socket *sock, struct socket *newsock, int flags)
+int scribe_accept(struct socket *sock, struct socket *newsock, int flags)
 {
 	/* Handled at the syscall level */
 	return sock->real_ops->accept(sock, newsock, flags);
 }
 
-static int scribe_getname(struct socket *sock, struct sockaddr *addr,
+int scribe_getname(struct socket *sock, struct sockaddr *addr,
 			  int *sockaddr_len, int peer)
 {
 	struct scribe_ps *scribe = current->scribe;
@@ -98,7 +98,7 @@ out:
 	return ret;
 }
 
-static unsigned int scribe_poll(struct file *file, struct socket *sock,
+unsigned int scribe_poll(struct file *file, struct socket *sock,
 				struct poll_table_struct *wait)
 {
 	struct scribe_ps *scribe = current->scribe;
@@ -116,7 +116,7 @@ static unsigned int scribe_poll(struct file *file, struct socket *sock,
 	return sock->real_ops->poll(file, sock, wait);
 }
 
-static int scribe_ioctl(struct socket *sock, unsigned int cmd,
+int scribe_ioctl(struct socket *sock, unsigned int cmd,
 			unsigned long arg)
 {
 	int ret;
@@ -127,7 +127,7 @@ static int scribe_ioctl(struct socket *sock, unsigned int cmd,
 }
 
 #ifdef CONFIG_COMPAT
-static int scribe_compat_ioctl(struct socket *sock, unsigned int cmd,
+int scribe_compat_ioctl(struct socket *sock, unsigned int cmd,
 			       unsigned long arg)
 {
 	if (!sock->real_ops->compat_ioctl)
@@ -136,12 +136,12 @@ static int scribe_compat_ioctl(struct socket *sock, unsigned int cmd,
 }
 #endif
 
-static int scribe_listen(struct socket *sock, int len)
+int scribe_listen(struct socket *sock, int len)
 {
 	return sock->real_ops->listen(sock, len);
 }
 
-static int scribe_shutdown(struct socket *sock, int flags)
+int scribe_shutdown(struct socket *sock, int flags)
 {
 	struct scribe_ps *scribe = current->scribe;
 	int ret, err;
@@ -156,7 +156,7 @@ static int scribe_shutdown(struct socket *sock, int flags)
 	return err ?: ret;
 }
 
-static int scribe_setsockopt(struct socket *sock, int level,
+int scribe_setsockopt(struct socket *sock, int level,
 			     int optname, char __user *optval,
 			     unsigned int optlen)
 {
@@ -182,7 +182,7 @@ static int scribe_setsockopt(struct socket *sock, int level,
 	return ret;
 }
 
-static int scribe_getsockopt(struct socket *sock, int level,
+int scribe_getsockopt(struct socket *sock, int level,
 			     int optname, char __user *optval,
 			     int __user *optlen)
 {
@@ -211,14 +211,14 @@ static int scribe_getsockopt(struct socket *sock, int level,
 }
 
 #ifdef CONFIG_COMPAT
-static int scribe_compat_setsockopt(struct socket *sock, int level,
+int scribe_compat_setsockopt(struct socket *sock, int level,
 				    int optname, char __user *optval,
 				    unsigned int optlen)
 {
 	return sock->real_ops->setsockopt(sock, level, optname, optval, optlen);
 }
 
-static int scribe_compat_getsockopt(struct socket *sock, int level,
+int scribe_compat_getsockopt(struct socket *sock, int level,
 				    int optname, char __user *optval,
 				    int __user *optlen)
 {
@@ -226,7 +226,7 @@ static int scribe_compat_getsockopt(struct socket *sock, int level,
 }
 #endif
 
-static int scribe_sendmsg(struct kiocb *iocb, struct socket *sock,
+int scribe_sendmsg(struct kiocb *iocb, struct socket *sock,
 			  struct msghdr *m, size_t total_len)
 {
 	struct scribe_ps *scribe = current->scribe;
@@ -269,7 +269,7 @@ out:
 	return err ?: ret;
 }
 
-static int scribe_recvmsg(struct kiocb *iocb, struct socket *sock,
+int scribe_recvmsg(struct kiocb *iocb, struct socket *sock,
 			  struct msghdr *m, size_t total_len,
 			  int flags)
 {
@@ -319,7 +319,7 @@ out:
 	return err ?: ret;
 }
 
-static int scribe_mmap(struct file *file, struct socket *sock,
+int scribe_mmap(struct file *file, struct socket *sock,
 		       struct vm_area_struct *vma)
 {
 	struct scribe_ps *scribe = current->scribe;
@@ -330,7 +330,7 @@ static int scribe_mmap(struct file *file, struct socket *sock,
 	return sock_no_mmap(file, sock, vma);
 }
 
-static ssize_t scribe_sendpage(struct socket *sock, struct page *page,
+ssize_t scribe_sendpage(struct socket *sock, struct page *page,
 			       int offset, size_t size, int flags)
 {
 	/*
@@ -341,7 +341,7 @@ static ssize_t scribe_sendpage(struct socket *sock, struct page *page,
 	return sock_no_sendpage(sock, page, offset, size, flags);
 }
 
-static ssize_t scribe_splice_read(struct socket *sock,  loff_t *ppos,
+ssize_t scribe_splice_read(struct socket *sock,  loff_t *ppos,
 				  struct pipe_inode_info *pipe, size_t len,
 				  unsigned int flags)
 {
@@ -350,7 +350,7 @@ static ssize_t scribe_splice_read(struct socket *sock,  loff_t *ppos,
 	return sock->real_ops->splice_read(sock, ppos, pipe, len, flags);
 }
 
-static bool scribe_is_deterministic(struct socket *sock)
+bool scribe_is_deterministic(struct socket *sock)
 {
 	struct scribe_ps *scribe = current->scribe;
 	if (!is_scribed(scribe))
@@ -364,7 +364,7 @@ static bool scribe_is_deterministic(struct socket *sock)
 	return sock->sk->sk_scribe_deterministic;
 }
 
-static bool scribe_sync_fput(struct socket *sock)
+bool scribe_sync_fput(struct socket *sock)
 {
 	if (unlikely(!sock->real_ops->sync_fput))
 		return false;

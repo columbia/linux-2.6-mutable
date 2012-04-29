@@ -85,7 +85,7 @@ void scribe_print_resources(struct scribe_res_context *res_ctx)
 }
 
 
-static void acquire_res(struct scribe_context *ctx, struct scribe_resource *res,
+void acquire_res(struct scribe_context *ctx, struct scribe_resource *res,
 			bool *lock_dropped)
 {
 	BUG_ON(res->ctx);
@@ -100,7 +100,7 @@ static void acquire_res(struct scribe_context *ctx, struct scribe_resource *res,
 	*lock_dropped = true;
 }
 
-static void release_res(struct scribe_resource *res, bool *lock_dropped)
+void release_res(struct scribe_resource *res, bool *lock_dropped)
 {
 	res->ctx = NULL;
 	list_del(&res->node);
@@ -108,7 +108,7 @@ static void release_res(struct scribe_resource *res, bool *lock_dropped)
 	atomic_set(&res->serial, 0);
 }
 
-static void release_mres(struct scribe_resource *res, bool *lock_dropped)
+void release_mres(struct scribe_resource *res, bool *lock_dropped)
 {
 	struct scribe_mapped_res *mres;
 	mres = container_of(res, struct scribe_mapped_res, mr_res);
@@ -116,7 +116,7 @@ static void release_mres(struct scribe_resource *res, bool *lock_dropped)
 	scribe_remove_mapped_res(mres);
 }
 
-static struct inode *__get_inode_from_res(struct scribe_resource *res)
+struct inode *__get_inode_from_res(struct scribe_resource *res)
 {
 	struct scribe_mapped_res *mres;
 
@@ -124,7 +124,7 @@ static struct inode *__get_inode_from_res(struct scribe_resource *res)
 	return container_of(mres->mr_map, struct inode, i_scribe_resource);
 }
 
-static void acquire_res_inode(struct scribe_context *ctx,
+void acquire_res_inode(struct scribe_context *ctx,
 			      struct scribe_resource *res, bool *lock_dropped)
 {
 	struct inode *inode = __get_inode_from_res(res);
@@ -137,7 +137,7 @@ static void acquire_res_inode(struct scribe_context *ctx,
 	spin_unlock(&inode_lock);
 }
 
-static void release_res_inode(struct scribe_resource *res, bool *lock_dropped)
+void release_res_inode(struct scribe_resource *res, bool *lock_dropped)
 {
 	struct scribe_context *ctx = res->ctx;
 	struct inode *inode = __get_inode_from_res(res);
@@ -150,7 +150,7 @@ static void release_res_inode(struct scribe_resource *res, bool *lock_dropped)
 	iput(inode);
 }
 
-static size_t get_file_description(struct scribe_resource *res,
+size_t get_file_description(struct scribe_resource *res,
 				   char *buffer, size_t size)
 
 {
@@ -181,7 +181,7 @@ static size_t get_file_description(struct scribe_resource *res,
 	return ret;
 }
 
-static size_t get_ppid_description(struct scribe_resource *res,
+size_t get_ppid_description(struct scribe_resource *res,
 				   char *buffer, size_t size)
 {
 	struct task_struct *p = res->object;
@@ -283,7 +283,7 @@ void scribe_track_resource(struct scribe_context *ctx,
 		spin_unlock_bh(&res_ctx->lock);
 }
 
-static void __scribe_reset_resource(struct scribe_resource *res,
+void __scribe_reset_resource(struct scribe_resource *res,
 				    bool *lock_dropped)
 {
 	int type = res->type;

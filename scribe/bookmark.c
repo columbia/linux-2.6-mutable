@@ -54,7 +54,7 @@ void scribe_bookmark_free(struct scribe_bookmark *bmark)
  * returns -EAGAIN if some scribed task are not blocking in sync_on_bookmark
  * yet, otherwise return the number of processes waiting on the bookmark sync
  */
-static int scribe_wait_all_sync(struct scribe_context *ctx)
+int scribe_wait_all_sync(struct scribe_context *ctx)
 {
 	struct scribe_ps *scribe;
 	int npr_waiting = 0;
@@ -76,7 +76,7 @@ static int scribe_wait_all_sync(struct scribe_context *ctx)
 	return ret;
 }
 
-static int prealloc_reached_event(struct scribe_bookmark *bmark)
+int prealloc_reached_event(struct scribe_bookmark *bmark)
 {
 	struct scribe_event_bookmark_reached *reached_event;
 
@@ -136,7 +136,7 @@ int scribe_bookmark_request(struct scribe_bookmark *bmark)
 	return 0;
 }
 
-static void sync_on_bookmark(struct scribe_bookmark *bmark)
+void sync_on_bookmark(struct scribe_bookmark *bmark)
 {
 	struct scribe_event_bookmark_reached *reached_event = NULL;
 

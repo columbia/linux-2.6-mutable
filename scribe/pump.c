@@ -42,16 +42,16 @@ struct scribe_pump {
 
 /* Shrinker */
 
-static LIST_HEAD(pumps);
-static DEFINE_MUTEX(pumps_lock);
+LIST_HEAD(pumps);
+DEFINE_MUTEX(pumps_lock);
 
-static void going_idle(struct scribe_pump *pump)
+void going_idle(struct scribe_pump *pump)
 {
 	pump->force_run = false;
 	wake_up(&pump->idle_wait);
 }
 
-static int pump_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
+int pump_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
 {
 	struct scribe_pump *pump;
 	DEFINE_WAIT(wait);
@@ -83,7 +83,7 @@ static int pump_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
 	return 0;
 }
 
-static struct shrinker pump_shrinker = {
+struct shrinker pump_shrinker = {
 	.shrink = pump_shrink,
 	.seeks = DEFAULT_SEEKS
 };
@@ -107,7 +107,7 @@ static inline int is_queue_active(struct scribe_queue *queue)
  * empty, -EAGAIN if at least one queue is present and all queues are empty
  * (or that we are waiting for the recording to start).
  */
-static int __get_active_queue(struct scribe_context *ctx,
+int __get_active_queue(struct scribe_context *ctx,
 			      struct scribe_queue **current_queue)
 {
 	struct scribe_queue *queue;
@@ -151,7 +151,7 @@ out:
 	return ret;
 }
 
-static int get_active_queue(struct scribe_context *ctx,
+int get_active_queue(struct scribe_context *ctx,
 			    struct scribe_queue **current_queue,
 			    int wait)
 {
@@ -173,7 +173,7 @@ static int get_active_queue(struct scribe_context *ctx,
  *
  * Note: This is where queues get to be freed when dead
  */
-static int get_next_event(pid_t *last_pid, struct scribe_event **event,
+int get_next_event(pid_t *last_pid, struct scribe_event **event,
 			  struct scribe_queue **current_queue)
 {
 	struct scribe_queue *queue;
@@ -219,7 +219,7 @@ static int get_next_event(pid_t *last_pid, struct scribe_event **event,
 	return 0;
 }
 
-static ssize_t serialize_events(struct scribe_context *ctx,
+ssize_t serialize_events(struct scribe_context *ctx,
 				char *buf, size_t count,
 				pid_t *last_pid,
 				struct scribe_queue **current_queue,
@@ -293,7 +293,7 @@ out:
 	return err;
 }
 
-static void event_pump_record(struct scribe_pump *pump)
+void event_pump_record(struct scribe_pump *pump)
 {
 	struct scribe_context *ctx = pump->ctx;
 	char *buf = pump->buffer;
@@ -361,7 +361,7 @@ err:
 
 /* Replay */
 
-static int handle_event_pid(struct scribe_context *ctx,
+int handle_event_pid(struct scribe_context *ctx,
 			    struct scribe_event *event,
 			    struct scribe_queue **current_queue,
 			    struct scribe_queue **pre_alloc_queue)
@@ -381,7 +381,7 @@ static int handle_event_pid(struct scribe_context *ctx,
 	return 0;
 }
 
-static ssize_t get_sized_event_size(const char *buf, size_t count)
+ssize_t get_sized_event_size(const char *buf, size_t count)
 {
 	struct scribe_event_sized *event;
 	__typeof__(event->size) size = 0;
@@ -395,7 +395,7 @@ static ssize_t get_sized_event_size(const char *buf, size_t count)
 	return *(__typeof__(size) *)(buf + size_offset);
 }
 
-static int alloc_next_event(const char *buf, size_t count,
+int alloc_next_event(const char *buf, size_t count,
 			    struct scribe_event **event)
 {
 	__typeof__((*event)->type) type;
@@ -420,7 +420,7 @@ static int alloc_next_event(const char *buf, size_t count,
 	return 0;
 }
 
-static ssize_t deserialize_events(struct scribe_context *ctx, const char *buf,
+ssize_t deserialize_events(struct scribe_context *ctx, const char *buf,
 				  size_t count, loff_t file_pos,
 				  struct scribe_queue **current_queue,
 				  struct scribe_queue **pre_alloc_queue,
@@ -498,7 +498,7 @@ out:
  * event_pump_replay() reads from @file to @buf, and call deserialize_events()
  * to instantiate each event.
  */
-static void event_pump_replay(struct scribe_pump *pump)
+void event_pump_replay(struct scribe_pump *pump)
 
 {
 	struct scribe_context *ctx = pump->ctx;
@@ -597,7 +597,7 @@ retry:
  * want it to immediately return to work, and the actual serialization will
  * happen on another CPU.
  */
-static int pump_kthread(void *_pump)
+int pump_kthread(void *_pump)
 {
 	struct scribe_pump *pump = _pump;
 

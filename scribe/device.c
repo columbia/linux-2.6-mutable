@@ -31,7 +31,7 @@ struct scribe_dev {
 	struct scribe_event *pending_event;
 };
 
-static int do_start(struct scribe_dev *dev, int state,
+int do_start(struct scribe_dev *dev, int state,
 		    unsigned long flags, int log_fd,
 		    unsigned int backtrace_len)
 {
@@ -65,7 +65,7 @@ err_pump:
 	return ret;
 }
 
-static int handle_command(struct scribe_dev *dev, struct scribe_event *event)
+int handle_command(struct scribe_dev *dev, struct scribe_event *event)
 {
 	struct scribe_event_record *event_record;
 	struct scribe_event_replay *event_replay;
@@ -98,7 +98,7 @@ static int handle_command(struct scribe_dev *dev, struct scribe_event *event)
 	}
 }
 
-static ssize_t dev_write(struct file *file,
+ssize_t dev_write(struct file *file,
 			 const char __user *buf, size_t count, loff_t *ppos)
 {
 	struct scribe_dev *dev = file->private_data;
@@ -141,7 +141,7 @@ static ssize_t dev_write(struct file *file,
 	return to_copy;
 }
 
-static ssize_t dev_read(struct file *file,
+ssize_t dev_read(struct file *file,
 			char __user *buf, size_t count, loff_t * ppos)
 {
 	struct scribe_dev *dev = file->private_data;
@@ -193,7 +193,7 @@ out:
 	return to_copy;
 }
 
-static int dev_open(struct inode *inode, struct file *file)
+int scribe_dev_open(struct inode *inode, struct file *file)
 {
 	struct scribe_dev *dev;
 	int ret;
@@ -227,7 +227,7 @@ out:
 	return ret;
 }
 
-static int dev_release(struct inode *inode, struct file *file)
+int dev_release(struct inode *inode, struct file *file)
 {
 	struct scribe_dev *dev = file->private_data;
 
@@ -243,10 +243,10 @@ static int dev_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations scribe_fops = {
+const struct file_operations scribe_fops = {
 	.read    = dev_read,
 	.write   = dev_write,
-	.open    = dev_open,
+	.open    = scribe_dev_open,
 	.release = dev_release,
 };
 
