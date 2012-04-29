@@ -2419,22 +2419,9 @@ int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka,
 
 		if (pre_alloc_handled_event(scribe, &h_event, &hc_event) < 0)
 			scribe_kill(scribe->ctx, -ENOMEM);
-
-		pid = task_tgid_vnr(current);
-		if (scribe_resource_prepare()) {
-			scribe_kill(scribe->ctx, -ENOMEM);
-			pid = -1;
-		} else
-			scribe_lock_pid_write(pid);
 	}
 
 relock:
-	if (scribe_resource_prepare()) {
-		scribe_kill(scribe->ctx, -ENOMEM);
-		scribe_unlock_pid(pid);
-		pid = -1;
-	}
-
 	/*
 	 * We'll jump back here after any time we were stopped in TASK_STOPPED.
 	 * While in TASK_STOPPED, we were considered "frozen enough".
