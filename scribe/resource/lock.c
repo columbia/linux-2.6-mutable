@@ -110,81 +110,8 @@ void __do_lock_read_serial(struct scribe_resource *res)
 	cmpxchg(&res->first_read_serial, -1, atomic_read(&res->serial));
 }
 
-void priority_lock(struct scribe_resource *res, int priority)
-{
-	if (priority) {
-		BUG_ON(use_spinlock(res));
-		atomic_inc(&res->priority_users);
-	}
-	else {
-		wait_event(res->wait,
-			   likely(!atomic_read(&res->priority_users)));
-	}
-}
-
-void priority_unlock(struct scribe_resource *res, int priority)
-{
-	if (priority) {
-		atomic_dec(&res->priority_users);
-		wake_up(&res->wait);
-	}
-}
-
-void untrack_user(struct scribe_lock_region *lock_region)
-{
-	struct scribe_resource *res = lock_region->res;
-
-	if (!scribe_resource_ops[res->type].track_users)
-		return;
-
-	spin_lock(&res->lock_regions_lock);
-	list_del(&lock_region->res_node);
-	spin_unlock(&res->lock_regions_lock);
-}
-
 void do_unlock_discard(struct scribe_ps *scribe,
 			      struct scribe_lock_region *lock_region);
-int track_user(struct scribe_ps *scribe,
-		      struct scribe_lock_region *lock_region)
-{
-	struct scribe_resource *res = lock_region->res;
-	int priority = lock_region->flags & SCRIBE_HIGH_PRIORITY;
-
-	if (!scribe_resource_ops[res->type].track_users)
-		return 0;
-
-	lock_region->owner = scribe;
-
-	spin_lock(&res->lock_regions_lock);
-	list_add(&lock_region->res_node, &res->lock_regions);
-	spin_unlock(&res->lock_regions_lock);
-
-	/* We need to avoid races with INTERRUPT_OTHERS and the priority */
-	if (!priority && unlikely(atomic_read(&res->priority_users))) {
-		untrack_user(lock_region);
-		do_unlock_discard(scribe, lock_region);
-		return -EAGAIN;
-	}
-	return 0;
-}
-
-void do_interrupt_users(struct scribe_resource *res)
-{
-	struct scribe_lock_region *lock_region;
-	struct task_struct *p;
-	unsigned long flags;
-
-	spin_lock(&res->lock_regions_lock);
-	list_for_each_entry(lock_region, &res->lock_regions, res_node) {
-		p = lock_region->owner->p;
-
-		if (lock_task_sighand(p, &flags)) {
-			signal_wake_up(p, 0);
-			unlock_task_sighand(p, &flags);
-		}
-	}
-	spin_unlock(&res->lock_regions_lock);
-}
 
 int do_lock_record(struct scribe_ps *scribe,
 			  struct scribe_lock_region *lock_region,
@@ -195,8 +122,6 @@ int do_lock_record(struct scribe_ps *scribe,
 	int do_intr = lock_region->flags & SCRIBE_INTERRUPTIBLE;
 	int do_write = lock_region->flags & SCRIBE_WRITE;
 	int nested = lock_region->flags & SCRIBE_NESTED;
-	int priority = lock_region->flags & SCRIBE_HIGH_PRIORITY;
-	int interrupt_users = lock_region->flags & SCRIBE_INTERRUPT_USERS;
 	size_t size;
 	int ret;
 
@@ -212,18 +137,11 @@ int do_lock_record(struct scribe_ps *scribe,
 		lock_event->h.size = size;
 	}
 
-	priority_lock(res, priority);
-
-	if (unlikely(interrupt_users))
-		do_interrupt_users(res);
-
 	scribe_create_insert_point(&lock_region->ip, &scribe->queue->stream);
 
 	ret = __do_lock_record(scribe, res, do_write, do_intr, nested);
 	if (unlikely(ret)) {
 		/* Interrupted ... */
-		priority_unlock(res, priority);
-
 		event = lock_region->lock_event.intr;
 		lock_region->lock_event.intr = NULL;
 
@@ -399,7 +317,6 @@ void do_unlock_record(struct scribe_ps *scribe,
 			     struct scribe_resource *res)
 {
 	int do_write = lock_region->flags & SCRIBE_WRITE;
-	int priority = lock_region->flags & SCRIBE_HIGH_PRIORITY;
 	unsigned long serial;
 
 	if (do_write) {
@@ -418,7 +335,6 @@ void do_unlock_record(struct scribe_ps *scribe,
 	}
 
 	__do_unlock_record(res, do_write);
-	priority_unlock(res, priority);
 
 	if (should_scribe_res_extra(scribe)) {
 		struct scribe_event_resource_lock_extra *lock_event;
@@ -580,8 +496,6 @@ retry:
 		no_lock = lock_region->flags & SCRIBE_NO_LOCK;
 	}
 
-	if (!ret && !no_lock)
-		ret = track_user(scribe, lock_region);
 	if (ret == -EAGAIN)
 		goto retry;
 
@@ -623,7 +537,6 @@ undo:
 		user = &scribe->resources;
 		lock_region = scribe_find_lock_region(user, args[i].res->object);
 		list_del(&lock_region->user_node);
-		untrack_user(lock_region);
 		do_unlock_discard(scribe, lock_region);
 
 		/* Put back in the pre alloc regions, lock was discarded */
@@ -650,8 +563,6 @@ void __scribe_unlock_region(struct scribe_ps *scribe,
 	no_lock = lock_region->flags & SCRIBE_NO_LOCK;
 
 	list_del(&lock_region->user_node);
-	if (!no_lock)
-		untrack_user(lock_region);
 
 	if (unlikely(discard)) {
 		if (!no_lock)

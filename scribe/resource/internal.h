@@ -91,7 +91,6 @@ extern void scribe_track_resource(struct scribe_context *ctx,
 struct scribe_lock_region;
 struct resource_ops_struct {
 	bool use_spinlock;
-	bool track_users;
 	void (*acquire) (struct scribe_context *, struct scribe_resource *,
 			 bool *);
 	void (*release) (struct scribe_resource *, bool *);
@@ -137,7 +136,6 @@ static inline int should_handle_resources(struct scribe_ps *scribe)
 struct scribe_lock_region {
 	struct scribe_ps *owner;
 	struct list_head user_node;
-	struct list_head res_node;
 	scribe_insert_point_t ip;
 	union {
 		struct scribe_event *generic;

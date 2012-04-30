@@ -1236,20 +1236,6 @@ void scribe_mem_sync_point(struct scribe_ps *scribe, int mode)
 	int ret, fence_ret = 0;
 	if (!should_handle_mm(scribe))
 		return;
-
-	if (mode & MEM_SYNC_IN) {
-		might_sleep();
-		if (mode & MEM_SYNC_SLEEP)
-			assert_sync_mode(scribe, MEM_SYNC_IN);
-		else
-			assert_sync_mode(scribe, 0);
-	} else {
-		if (mode & MEM_SYNC_SLEEP)
-			assert_sync_mode(scribe, MEM_SYNC_IN | MEM_SYNC_SLEEP);
-		else
-			assert_sync_mode(scribe, MEM_SYNC_IN);
-	}
-
 	need_fence = current->scribe == scribe && mode == MEM_SYNC_IN;
 
 	if (need_fence)
@@ -1717,6 +1703,7 @@ int scribe_page_access_replay(struct scribe_ps *scribe,
 		return -EAGAIN;
 	}
 
+	page_addr = address & PAGE_MASK;
 	if (get_owned_event_info(scribe, event,
 				 &rw_flag, &page_addr, &serial)) {
 		goto diverge;

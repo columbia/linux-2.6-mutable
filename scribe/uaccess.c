@@ -15,10 +15,6 @@
 
 void __scribe_allow_uaccess(struct scribe_ps *scribe)
 {
-	/* If we are already at 3 level deep... Something must be wrong */
-	WARN(scribe->can_uaccess > 3,
-	     "scribe->can_uaccess == %d\n", scribe->can_uaccess);
-
 	if (!scribe->can_uaccess)
 		scribe_mem_sync_point(scribe, MEM_SYNC_OUT);
 
@@ -27,12 +23,7 @@ void __scribe_allow_uaccess(struct scribe_ps *scribe)
 
 void __scribe_forbid_uaccess(struct scribe_ps *scribe)
 {
-	/* If we are already at a negative level... Something must be wrong */
-	WARN(scribe->can_uaccess < 0,
-	     "scribe->can_uaccess == %d\n", scribe->can_uaccess);
-
 	scribe->can_uaccess--;
-
 	if (!scribe->can_uaccess)
 		scribe_mem_sync_point(scribe, MEM_SYNC_IN);
 }

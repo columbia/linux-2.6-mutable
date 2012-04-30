@@ -57,10 +57,6 @@ struct scribe_resource {
 	} lock;
 
 	wait_queue_head_t wait;
-	atomic_t priority_users;
-
-	spinlock_t lock_regions_lock;
-	struct list_head lock_regions;
 };
 
 void scribe_init_resource(struct scribe_resource *res, void *object, int type);
@@ -156,10 +152,7 @@ extern int scribe_resource_prepare(void);
 #define SCRIBE_INODE_EXPLICIT	0x0020
 #define SCRIBE_NESTED		0x0040
 #define SCRIBE_NO_LOCK		0x0080
-#define SCRIBE_HIGH_PRIORITY	0x0100
-#define SCRIBE_INTERRUPT_USERS	0x0200
 #define SCRIBE_IMPLICIT_UNLOCK	0x0400
-#define SCRIBE_CAN_DOWNGRADE	0x0800
 extern void scribe_lock_object(struct scribe_resource *res, int flags);
 extern void scribe_lock_object_key(struct scribe_res_map *map,
 				   void *key, int flags);

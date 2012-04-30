@@ -46,10 +46,6 @@ void scribe_init_resource(struct scribe_resource *res, void *object, int type)
 	}
 
 	init_waitqueue_head(&res->wait);
-	atomic_set(&res->priority_users, 0);
-
-	spin_lock_init(&res->lock_regions_lock);
-	INIT_LIST_HEAD(&res->lock_regions);
 }
 
 void scribe_print_resources(struct scribe_res_context *res_ctx)
@@ -198,8 +194,7 @@ struct resource_ops_struct scribe_resource_ops[SCRIBE_RES_NUM_TYPES] =
 {
 	LK(SCRIBE_RES_TYPE_INODE,	 .acquire = acquire_res_inode,
 					 .release = release_res_inode)
-	LK(SCRIBE_RES_TYPE_FILE,	 .track_users = true,
-					 .release = release_mres,
+	LK(SCRIBE_RES_TYPE_FILE,	 .release = release_mres,
 					 .get_description =
 					            get_file_description)
 	LK(SCRIBE_RES_TYPE_FILES_STRUCT, .use_spinlock = true)
@@ -301,8 +296,6 @@ void scribe_reset_resource(struct scribe_resource *res)
 	if (!res->ctx)
 		return;
 	res_ctx = res->ctx->res_ctx;
-
-	BUG_ON(!list_empty(&res->lock_regions));
 
 	spin_lock_bh(&res_ctx->lock);
 	__scribe_reset_resource(res, &lock_dropped);
