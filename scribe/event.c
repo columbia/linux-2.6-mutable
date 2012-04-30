@@ -482,6 +482,19 @@ struct scribe_event *scribe_dequeue_event(struct scribe_queue *queue, int wait)
 	return event;
 }
 
+void scribe_move_events(struct scribe_queue *queue, struct list_head *head)
+{
+	struct scribe_stream *stream = &queue->stream;
+	scribe_insert_point_t *ip = &stream->master;
+	struct scribe_substream *substream = ip;
+	unsigned long flags;
+
+	spin_lock_irqsave(&stream->lock, flags);
+	list_splice_tail_init(&substream->events, head);
+	BUG_ON(!list_empty(&substream->events));
+	spin_unlock_irqrestore(&stream->lock, flags);
+}
+
 struct scribe_event *scribe_dequeue_event_stream(struct scribe_stream *stream,
 						 int wait)
 {

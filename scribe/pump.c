@@ -108,7 +108,8 @@ static inline int is_queue_active(struct scribe_queue *queue)
  * (or that we are waiting for the recording to start).
  */
 int __get_active_queue(struct scribe_context *ctx,
-			      struct scribe_queue **current_queue)
+			      struct scribe_queue **current_queue,
+			      struct list_head *events)
 {
 	struct scribe_queue *queue;
 	int ret = 0;
@@ -148,20 +149,24 @@ out:
 		scribe_put_queue(*current_queue);
 	*current_queue = queue;
 
+	if (queue)
+		scribe_move_events(queue, events);
+
 	return ret;
 }
 
 int get_active_queue(struct scribe_context *ctx,
 			    struct scribe_queue **current_queue,
+			    struct list_head *events,
 			    int wait)
 {
 	int ret;
 
 	if (wait == SCRIBE_NO_WAIT)
-		return __get_active_queue(ctx, current_queue);
+		return __get_active_queue(ctx, current_queue, events);
 
 	wait_event(ctx->queues_wait,
-		   (ret = __get_active_queue(ctx, current_queue)) != -EAGAIN);
+		   (ret = __get_active_queue(ctx, current_queue, events)) != -EAGAIN);
 
 	return ret;
 }
@@ -174,7 +179,8 @@ int get_active_queue(struct scribe_context *ctx,
  * Note: This is where queues get to be freed when dead
  */
 int get_next_event(pid_t *last_pid, struct scribe_event **event,
-			  struct scribe_queue **current_queue)
+			  struct scribe_queue **current_queue,
+			  struct list_head *pending_events)
 {
 	struct scribe_queue *queue;
 	struct scribe_event_pid *event_pid;
@@ -192,8 +198,9 @@ int get_next_event(pid_t *last_pid, struct scribe_event **event,
 		*last_pid = queue->pid;
 
 		*event = (struct scribe_event *)event_pid;
-	} else if (likely(!scribe_is_stream_empty(&queue->stream))) {
-		*event = scribe_dequeue_event(queue, SCRIBE_NO_WAIT);
+	} else if (likely(!list_empty(pending_events))) {
+		*event = list_first_entry(pending_events, struct scribe_event, node);
+		list_del(&(*event)->node);
 	} else {
 		BUG_ON(!&queue->stream.sealed);
 
@@ -223,6 +230,7 @@ ssize_t serialize_events(struct scribe_context *ctx,
 				char *buf, size_t count,
 				pid_t *last_pid,
 				struct scribe_queue **current_queue,
+				struct list_head  *pending_events,
 				struct scribe_event **pending_event,
 				size_t *pending_offset)
 {
@@ -240,8 +248,8 @@ ssize_t serialize_events(struct scribe_context *ctx,
 	 */
 	event = *pending_event;
 	*pending_event = NULL;
-	if (!event) {
-		err = get_active_queue(ctx, current_queue, SCRIBE_WAIT);
+	if (!event && list_empty(pending_events)) {
+		err = get_active_queue(ctx, current_queue, pending_events, SCRIBE_WAIT);
 		if (err) {
 			/*
 			 * if err == -ENODATA, it means that the context is in
@@ -256,7 +264,7 @@ ssize_t serialize_events(struct scribe_context *ctx,
 
 	for (;;) {
 		if (!event) {
-			err = get_next_event(last_pid, &event, current_queue);
+			err = get_next_event(last_pid, &event, current_queue, pending_events);
 			if (err)
 				goto out;
 		}
@@ -282,9 +290,12 @@ ssize_t serialize_events(struct scribe_context *ctx,
 		buf += to_write;
 		count -= to_write;
 
-		err = get_active_queue(ctx, current_queue, SCRIBE_NO_WAIT);
-		if (err)
-			goto out;
+		if (unlikely(list_empty(pending_events))) {
+			err = get_active_queue(ctx, current_queue, pending_events,
+					       SCRIBE_NO_WAIT);
+			if (err)
+				goto out;
+		}
 	}
 
 out:
@@ -309,6 +320,9 @@ void event_pump_record(struct scribe_pump *pump)
 	size_t to_write;
 	char *write_buf;
 
+	struct list_head pending_events;
+	INIT_LIST_HEAD(&pending_events);
+
 	while (!kthread_should_stop()) {
 		/*
 		 * Looping here on every event is inefficient.
@@ -323,7 +337,7 @@ void event_pump_record(struct scribe_pump *pump)
 		}
 
 		ret = serialize_events(ctx, buf, PUMP_BUFFER_SIZE,
-				       &last_pid, &current_queue,
+				       &last_pid, &current_queue, &pending_events,
 				       &pending_event, &pending_offset);
 		if (ret < 0)
 			goto err;

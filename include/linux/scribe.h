@@ -179,6 +179,8 @@ extern void scribe_queue_events_stream(struct scribe_stream *stream,
 #define SCRIBE_NO_WAIT			0
 #define SCRIBE_WAIT			1
 #define SCRIBE_WAIT_INTERRUPTIBLE	2
+extern void scribe_move_events(struct scribe_queue *queue,
+			       struct list_head *head);
 extern struct scribe_event *scribe_dequeue_event_stream(
 				struct scribe_stream *stream, int wait);
 extern struct scribe_event *scribe_dequeue_event(
