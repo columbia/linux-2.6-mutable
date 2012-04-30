@@ -51,8 +51,10 @@ typedef struct scribe_substream scribe_insert_point_t;
 
 struct scribe_stream {
 	spinlock_t lock;
-
 	struct scribe_substream master;
+	struct list_head loading_dock;
+	unsigned int ticks;
+	unsigned int max_ticks;
 
 	unsigned long *last_event_jiffies;
 
@@ -705,51 +707,63 @@ static inline int should_have_fixed_io(struct scribe_ps *scribe)
 
 static inline int should_scribe_syscall_ret(struct scribe_ps *scribe)
 {
+	return 0;
 	return scribe->ctx->flags & (SCRIBE_SYSCALL_RET | SCRIBE_SYSCALL_EXTRA);
 }
 static inline int should_scribe_syscall_extra(struct scribe_ps *scribe)
 {
+	return 0;
 	return scribe->ctx->flags & SCRIBE_SYSCALL_EXTRA;
 }
 static inline int should_scribe_sig_extra(struct scribe_ps *scribe)
 {
+	return 0;
 	return scribe->ctx->flags & SCRIBE_SIG_EXTRA;
 }
 static inline int should_scribe_sig_cookie(struct scribe_ps *scribe)
 {
+	return 0;
 	return scribe->ctx->flags & SCRIBE_SIG_COOKIE;
 }
 static inline int should_scribe_res_extra(struct scribe_ps *scribe)
 {
+	return 0;
 	return scribe->ctx->flags & SCRIBE_RES_EXTRA;
 }
 static inline int should_scribe_mem_extra(struct scribe_ps *scribe)
 {
+	return 0;
 	return scribe->ctx->flags & SCRIBE_MEM_EXTRA;
 }
 static inline int should_scribe_data_extra(struct scribe_ps *scribe)
 {
+	return 0;
 	return scribe->ctx->flags & SCRIBE_DATA_EXTRA;
 }
 static inline int should_scribe_data_string_always(struct scribe_ps *scribe)
 {
+	return 0;
 	return scribe->ctx->flags & (SCRIBE_DATA_STRING_ALWAYS |
 				     SCRIBE_DATA_ALWAYS);
 }
 static inline int should_scribe_data_always(struct scribe_ps *scribe)
 {
+	return 0;
 	return scribe->ctx->flags & SCRIBE_DATA_ALWAYS;
 }
 static inline int should_scribe_res_always(struct scribe_ps *scribe)
 {
+	return 0;
 	return scribe->ctx->flags & SCRIBE_RES_ALWAYS;
 }
 static inline int should_scribe_fence_always(struct scribe_ps *scribe)
 {
+	return 0;
 	return scribe->ctx->flags & SCRIBE_FENCE_ALWAYS;
 }
 static inline int should_scribe_regs(struct scribe_ps *scribe)
 {
+	return 0;
 	return scribe->ctx->flags & SCRIBE_REGS;
 }
 static inline int scribe_mm_disabled(struct scribe_ps *scribe)

@@ -374,9 +374,10 @@ void scribe_enter_syscall(struct pt_regs *regs)
 	if (!is_scribed(scribe))
 		return;
 
-	cache_syscall_info(scribe, regs);
-	if (is_scribe_syscall(scribe->syscall.nr))
-		return;
+	scribe->syscall.nr = get_nr_syscall(regs);
+	/*cache_syscall_info(scribe, regs);*/
+	/*if (is_scribe_syscall(scribe->syscall.nr))*/
+		/*return;*/
 
 	scribe_reset_fence_numbering(scribe);
 
@@ -386,31 +387,31 @@ void scribe_enter_syscall(struct pt_regs *regs)
 	scribe_data_det();
 
 	scribe_signal_enter_sync_point(&num_sig_deferred);
-	if (num_sig_deferred > 0) {
-		/* TODO We could go back to userspace to reduce latency */
-	}
+	/*if (num_sig_deferred > 0) {*/
+		/*[> TODO We could go back to userspace to reduce latency <]*/
+	/*}*/
 
 	__scribe_forbid_uaccess(scribe);
 
-	scribe_handle_custom_actions(scribe);
+	/*scribe_handle_custom_actions(scribe);*/
 
-	scribe_bookmark_point(SCRIBE_BOOKMARK_PRE_SYSCALL);
+	/*scribe_bookmark_point(SCRIBE_BOOKMARK_PRE_SYSCALL);*/
 
-	if (scribe_maybe_detach(scribe))
-		return;
+	/*if (scribe_maybe_detach(scribe))*/
+		/*return;*/
 
 	/* FIXME signals needs the return value */
-	if (!should_scribe_syscalls(scribe))
-		return;
+	/*if (!should_scribe_syscalls(scribe))*/
+		/*return;*/
 
-	if (should_scribe_syscall_ret(scribe) ||
-	    is_interruptible_syscall(scribe->syscall.nr))
-		__scribe_need_syscall_ret(scribe);
+	/*if (should_scribe_syscall_ret(scribe) ||*/
+	    /*is_interruptible_syscall(scribe->syscall.nr))*/
+	__scribe_need_syscall_ret(scribe);
 
-	if (should_scribe_syscalls(scribe) &&
-	    should_scribe_regs(scribe) &&
-	    scribe_regs(scribe, regs))
-		return;
+	/*if (should_scribe_syscalls(scribe) &&*/
+	    /*should_scribe_regs(scribe) &&*/
+	    /*scribe_regs(scribe, regs))*/
+		/*return;*/
 
 	recalc_sigpending();
 
@@ -424,31 +425,31 @@ void scribe_commit_syscall_record(struct scribe_ps *scribe,
 	int syscall_extra = should_scribe_syscall_extra(scribe);
 	int i;
 
-	if (syscall_extra) {
-		event.extra = scribe_alloc_event_sized(SCRIBE_EVENT_SYSCALL_EXTRA,
-			scribe->syscall.num_args * sizeof(unsigned long));
-	} else
+	/*if (syscall_extra) {*/
+		/*event.extra = scribe_alloc_event_sized(SCRIBE_EVENT_SYSCALL_EXTRA,*/
+			/*scribe->syscall.num_args * sizeof(unsigned long));*/
+	/*} else*/
 		event.regular = scribe_alloc_event(SCRIBE_EVENT_SYSCALL);
 
 	if (!event.generic)
 		goto err;
 
-	if (syscall_extra) {
-		event.extra->ret = ret_value;
-		event.extra->nr = scribe->syscall.nr;
-		for (i = 0; i < scribe->syscall.num_args; i++)
-			event.extra->args[i] = scribe->syscall.args[i];
-	} else
+	/*if (syscall_extra) {*/
+		/*event.extra->ret = ret_value;*/
+		/*event.extra->nr = scribe->syscall.nr;*/
+		/*for (i = 0; i < scribe->syscall.num_args; i++)*/
+			/*event.extra->args[i] = scribe->syscall.args[i];*/
+	/*} else*/
 		event.regular->ret = ret_value;
 
 	scribe_queue_event_at(&scribe->syscall_ip, event.generic);
 	scribe_commit_insert_point(&scribe->syscall_ip);
 
-	if (syscall_extra) {
-		if (scribe_queue_new_event(scribe->queue,
-				   SCRIBE_EVENT_SYSCALL_END))
-			goto err;
-	}
+	/*if (syscall_extra) {*/
+		/*if (scribe_queue_new_event(scribe->queue,*/
+				   /*SCRIBE_EVENT_SYSCALL_END))*/
+			/*goto err;*/
+	/*}*/
 
 	return;
 err:
@@ -497,28 +498,28 @@ void scribe_exit_syscall(struct pt_regs *regs)
 	if (!is_scribed(scribe))
 		return;
 
-	if (is_scribe_syscall(scribe->syscall.nr))
-		return;
+	/*if (is_scribe_syscall(scribe->syscall.nr))*/
+		/*return;*/
 
 	scribe->in_syscall = 0;
 
-	if (!scribe->commit_sys_reset_flags || is_mutating(scribe)) {
+	/*if (!scribe->commit_sys_reset_flags || is_mutating(scribe)) {*/
 		scribe_commit_syscall(scribe, regs,
 				      syscall_get_return_value(current, regs));
-	}
+	/*}*/
 
-	if (is_mutating(scribe))
-		scribe_stop_mutations(scribe);
+	/*if (is_mutating(scribe))*/
+		/*scribe_stop_mutations(scribe);*/
 
-	if (scribe->commit_sys_reset_flags) {
-		scribe_syscall_set_flags(scribe, scribe->commit_sys_reset_flags,
-				 SCRIBE_PERMANANT);
-	}
+	/*if (scribe->commit_sys_reset_flags) {*/
+		/*scribe_syscall_set_flags(scribe, scribe->commit_sys_reset_flags,*/
+				 /*SCRIBE_PERMANANT);*/
+	/*}*/
 
-	scribe_bookmark_point(SCRIBE_BOOKMARK_POST_SYSCALL);
+	/*scribe_bookmark_point(SCRIBE_BOOKMARK_POST_SYSCALL);*/
 
-	if (scribe_maybe_detach(scribe))
-		return;
+	/*if (scribe_maybe_detach(scribe))*/
+		/*return;*/
 
 	__scribe_allow_uaccess(scribe);
 	scribe_signal_leave_sync_point();
@@ -531,8 +532,8 @@ void scribe_exit_syscall(struct pt_regs *regs)
 	 */
 	recalc_sigpending_and_wake(current);
 
-	if (unlikely(!scribe->can_uaccess))
-		scribe_kill(scribe->ctx, -EINVAL);
+	/*if (unlikely(!scribe->can_uaccess))*/
+		/*scribe_kill(scribe->ctx, -EINVAL);*/
 }
 
 void scribe_ret_from_fork(struct pt_regs *regs)

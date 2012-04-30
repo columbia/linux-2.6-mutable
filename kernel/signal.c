@@ -830,18 +830,18 @@ void scribe_signal_enter_sync_point(int *num_deferred)
 	if (!is_scribed(scribe) || !should_scribe_signals(scribe))
 		return;
 
-	ret = scribe_enter_fenced_region(SCRIBE_REGION_SIGNAL);
-	if (ret < 0) {
-		scribe_kill(scribe->ctx, ret);
-		return;
-	}
+	/*ret = scribe_enter_fenced_region(SCRIBE_REGION_SIGNAL);*/
+	/*if (ret < 0) {*/
+		/*scribe_kill(scribe->ctx, ret);*/
+		/*return;*/
+	/*}*/
 
 	if (is_recording(scribe))
 		scribe_signal_enter_sync_point_record(scribe, num_deferred);
 	else
 		scribe_signal_enter_sync_point_replay(scribe, num_deferred);
 
-	scribe_leave_fenced_region(SCRIBE_REGION_SIGNAL);
+	/*scribe_leave_fenced_region(SCRIBE_REGION_SIGNAL);*/
 }
 
 static void scribe_signal_leave_sync_point_record(struct scribe_ps *scribe)

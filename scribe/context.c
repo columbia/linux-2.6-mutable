@@ -571,6 +571,7 @@ void scribe_attach(struct scribe_ps *scribe)
 		 * processes sends their event queue notifications to it.
 		 */
 		scribe->queue->stream.wait = &ctx->queues_wait;
+		scribe->queue->stream.max_ticks = 1000;
 	} else { /* is_replaying(scribe) == 1 */
 
 		/*

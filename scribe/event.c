@@ -24,10 +24,15 @@ void scribe_init_stream(struct scribe_stream *stream)
 {
 	spin_lock_init(&stream->lock);
 	init_substream(stream, &stream->master);
+
+	INIT_LIST_HEAD(&stream->loading_dock);
+	stream->ticks = 0;
+
 	stream->last_event_jiffies = NULL;
 	stream->sealed = 0;
 	init_waitqueue_head(&stream->default_wait);
 	stream->wait = &stream->default_wait;
+	stream->max_ticks = 0;
 }
 
 void scribe_init_queue(struct scribe_queue *queue,
@@ -222,6 +227,11 @@ void scribe_free_all_events(struct scribe_stream *stream)
 		scribe_free_event(event);
 	}
 
+	list_for_each_entry_safe(event, tmp, &stream->loading_dock, node) {
+		list_del(&event->node);
+		scribe_free_event(event);
+	}
+
 	spin_unlock_irqrestore(&stream->lock, flags);
 }
 
@@ -239,13 +249,11 @@ void set_region(struct scribe_stream *stream,
 	struct scribe_substream *substream;
 	unsigned long flags;
 
-	spin_lock_irqsave(&stream->lock, flags);
 	substream = get_substream(ip);
 	if (substream != ip)
 		substream->clear_region_on_commit_set &= ~(1 << region);
 	BUG_ON(substream->region_set & (1 << region));
 	substream->region_set |= (1 << region);
-	spin_unlock_irqrestore(&stream->lock, flags);
 }
 
 void clear_region(struct scribe_stream *stream,
@@ -254,13 +262,11 @@ void clear_region(struct scribe_stream *stream,
 	struct scribe_substream *substream;
 	unsigned long flags;
 
-	spin_lock_irqsave(&stream->lock, flags);
 	substream = get_substream(ip);
 	if (ip == substream)
 		substream->region_set &= ~(1 << region);
 	else
 		substream->clear_region_on_commit_set |= (1 << region);
-	spin_unlock_irqrestore(&stream->lock, flags);
 }
 
 void __clear_regions_on_commit(scribe_insert_point_t *ip,
@@ -303,13 +309,13 @@ void init_insert_point(scribe_insert_point_t *ip,
 			      struct scribe_stream *stream,
 			      struct scribe_substream *where)
 {
-	unsigned long flags;
+	/*unsigned long flags;*/
 
 	init_substream(stream, ip);
 
-	spin_lock_irqsave(&stream->lock, flags);
+	/*spin_lock_irqsave(&stream->lock, flags);*/
 	list_add(&ip->node, &where->node);
-	spin_unlock_irqrestore(&stream->lock, flags);
+	/*spin_unlock_irqrestore(&stream->lock, flags);*/
 }
 
 void scribe_create_insert_point(scribe_insert_point_t *ip,
@@ -324,6 +330,7 @@ static inline void __scribe_queue_at(struct scribe_stream *stream,
 				     struct list_head *events)
 {
 	struct scribe_substream *substream = get_substream(ip);
+	unsigned long flags;
 
 	/*
 	 * When queuing events, we want to put them in the next
@@ -342,8 +349,20 @@ static inline void __scribe_queue_at(struct scribe_stream *stream,
 		list_splice_tail_init(events, &substream->events);
 	}
 
-	if (substream == &stream->master)
-		wake_up(stream->wait);
+	stream->ticks++;
+
+	if (substream == &stream->master) {
+
+		if (stream->ticks > stream->max_ticks) {
+			spin_lock_irqsave(&stream->lock, flags);
+			list_splice_tail_init(&substream->events,
+					      &stream->loading_dock);
+			spin_unlock_irqrestore(&stream->lock, flags);
+			stream->ticks = 0;
+			wake_up(stream->wait);
+		}
+
+	}
 }
 
 void scribe_commit_insert_point(scribe_insert_point_t *ip)
@@ -351,11 +370,9 @@ void scribe_commit_insert_point(scribe_insert_point_t *ip)
 	struct scribe_stream *stream = ip->stream;
 	unsigned long flags;
 
-	spin_lock_irqsave(&stream->lock, flags);
 	__clear_regions_on_commit(ip, get_substream(ip));
 	__scribe_queue_at(stream, ip, NULL, &ip->events);
 	list_del(&ip->node);
-	spin_unlock_irqrestore(&stream->lock, flags);
 }
 
 void commit_pending_insert_points(struct scribe_stream *stream)
@@ -371,11 +388,7 @@ static inline void scribe_queue_at(struct scribe_stream *stream,
 				   struct scribe_event *event,
 				   struct list_head *events)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&stream->lock, flags);
 	__scribe_queue_at(stream, ip, event, events);
-	spin_unlock_irqrestore(&stream->lock, flags);
 }
 
 void scribe_queue_event_at(scribe_insert_point_t *ip, void *event)
@@ -485,13 +498,10 @@ struct scribe_event *scribe_dequeue_event(struct scribe_queue *queue, int wait)
 void scribe_move_events(struct scribe_queue *queue, struct list_head *head)
 {
 	struct scribe_stream *stream = &queue->stream;
-	scribe_insert_point_t *ip = &stream->master;
-	struct scribe_substream *substream = ip;
 	unsigned long flags;
 
 	spin_lock_irqsave(&stream->lock, flags);
-	list_splice_tail_init(&substream->events, head);
-	BUG_ON(!list_empty(&substream->events));
+	list_splice_tail_init(&stream->loading_dock, head);
 	spin_unlock_irqrestore(&stream->lock, flags);
 }
 
@@ -530,14 +540,16 @@ bool scribe_is_stream_empty(struct scribe_stream *stream)
 
 	/* FIXME is the spinlock really necessary ? */
 	spin_lock_irqsave(&stream->lock, flags);
-	ret = list_empty(&stream->master.events);
+	ret = list_empty(&stream->loading_dock);
 	spin_unlock_irqrestore(&stream->lock, flags);
 	return ret;
 }
 
 void scribe_seal_stream(struct scribe_stream *stream)
 {
+	stream->max_ticks = 0;
 	commit_pending_insert_points(stream);
+	scribe_queue_event_stream(stream, NULL);
 	stream->sealed = 1;
 	wake_up(stream->wait);
 }
